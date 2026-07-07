@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rewards — Classroom Point Tracker</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main id="app">
+      <header class="app-header">
+        <h1>⭐ Rewards</h1>
+        <button id="settings-btn" class="btn btn-ghost" type="button">⚙ Settings</button>
+      </header>
+
+      <section class="class-picker-wrap" aria-label="Choose class">
+        <div id="class-picker" class="class-picker"></div>
+      </section>
+
+      <section class="reward-bar" aria-label="Give points">
+        <span class="reward-label">Give points:</span>
+        <button class="btn btn-point" data-action="+1" type="button" disabled>+1 point</button>
+        <button class="btn btn-point" data-action="+2" type="button" disabled>+2 points</button>
+        <button class="btn btn-point" data-action="+3" type="button" disabled>+3 points</button>
+        <button class="btn btn-sad" data-action="sad" type="button" disabled>☹ Sad face</button>
+      </section>
+
+      <section aria-label="Students">
+        <div id="student-grid" class="student-grid"></div>
+      </section>
+
+      <section class="leaderboard-wrap" aria-label="Leaderboard">
+        <h2>🏆 Leaderboard</h2>
+        <ol id="leaderboard" class="leaderboard"></ol>
+      </section>
+    </main>
+
+    <!-- Settings modal -->
+    <div id="settings-modal" class="modal" hidden>
+      <div class="modal-card">
+        <h2>Settings</h2>
+        <p class="muted">Coming soon: edit roster, reset points, export data.</p>
+        <button id="settings-close" class="btn btn-primary" type="button">Close</button>
+      </div>
+    </div>
+
+    <script src="./students.js"></script>
+    <script src="./script.js"></script>
+  </body>
+</html>

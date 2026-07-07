@@ -81,7 +81,7 @@ const studentsForActiveClass = () =>
 
 function isStudentInClass(student, classDef) {
   if (classDef.id === "top-stars-2")      return student.tier === "young";
-  if (classDef.id === "top-stars-2-1on1") return student.id === "jenny";
+  if (classDef.id === "top-stars-2-1on1") return student.id === "jenny-1on1";
   if (classDef.id === "top-stars-3")      return student.tier === "mid";
   if (classDef.id === "top-stars-4")      return student.tier === "older";
   return false;

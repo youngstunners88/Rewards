@@ -3,22 +3,23 @@
    State is held in a single object and persisted to localStorage on every change. */
 
 /* ---------- Storage keys ----------
-   We persist three independent states (one per class) so a teacher can
-   switch between Top Stars 2 / 3 / 4 without losing the others. */
-const LS_ACTIVE   = "rewards.activeClass.v1";
-const LS_PREFIX   = "rewards."; // each class key = rewards.<classId>.<field>
+   We persist per-class state so a teacher can switch between
+   Top Stars 2 / TS2 1-on-1 / Top Stars 3 / Top Stars 4 without
+   losing the others. */
+const LS_ACTIVE             = "rewards.activeClass.v1";
+const LS_LEADERBOARD_SCOPE  = "rewards.leaderboardScope.v1";
+const LS_PREFIX             = "rewards."; // class key = rewards.<classId>.<field>
 
 const CLASSES = [
-  { id: "top-stars-2",       label: "Top Stars 2",  ages: "8-9",   tier: "young" },
-  { id: "top-stars-2-1on1",  label: "TS2 1-on-1",   ages: "8-9",   tier: "young" }, // Thu 14:00-14:30
-  { id: "top-stars-3",       label: "Top Stars 3",  ages: "10-12", tier: "mid"   },
-  { id: "top-stars-4",       label: "Top Stars 4",  ages: "12-14", tier: "older" },
+  { id: "top-stars-2",      label: "Top Stars 2", ages: "8-9",   tier: "young" },
+  { id: "top-stars-2-1on1", label: "TS2 1-on-1",  ages: "8-9",   tier: "young" },
+  { id: "top-stars-3",      label: "Top Stars 3", ages: "10-12", tier: "mid"   },
+  { id: "top-stars-4",      label: "Top Stars 4", ages: "12-14", tier: "older" },
 ];
 
-function classKey(field) { return LS_PREFIX + activeClassId() + "." + field; }
 function activeClassId() { return state.activeClassId || CLASSES[0].id; }
+function classKey(field) { return LS_PREFIX + activeClassId() + "." + field; }
 
-/* ---------- Default roster (from students.js) ---------- */
 const DEFAULT_STUDENTS = window.DEFAULT_STUDENTS || [];
 
 /* ---------- Sounds (Web Audio, no asset files required) ---------- */
@@ -32,7 +33,6 @@ const sfx = {
     if (this.ctx && this.ctx.state === "suspended") this.ctx.resume();
     return this.ctx;
   },
-  /* happy "ding" — two-note ascending bell */
   happy() {
     const ctx = this.ensure(); if (!ctx) return;
     [880, 1320].forEach((freq, i) => {
@@ -47,7 +47,6 @@ const sfx = {
       o.stop(ctx.currentTime + i * 0.08 + 0.3);
     });
   },
-  /* sad "buzz" — low square wave */
   sad() {
     const ctx = this.ensure(); if (!ctx) return;
     const o = ctx.createOscillator();
@@ -62,17 +61,25 @@ const sfx = {
   },
 };
 
-/* ---------- State ---------- */
-// state is initialised by loadState() below; see CLASSES / LS_* at top of file.
+/* ---------- State ----------
+   Per class, we keep a per-day scorebook:
+
+   state.dayScores = {
+     "2026-7-7":  { leah: 3, elio: 1 },
+     "2026-7-6":  { leah: 2, isabella: 4 },
+     ...
+   }
+
+   Today's view:      state.dayScores[state.currentDateKey] || {}
+   All-time totals:   sum of every day for each student id
+   Sad faces reset daily. */
 const state = {
-  // Map of student id -> points (only students in the active class).
-  points: {},
-  // Map of student id -> true if marked sad for this class.
-  sad: {},
-  // Currently selected student id for awarding points.
-  selectedId: null,
-  // Which class is active. Persists across reloads.
-  activeClassId: null,
+  activeClassId:     null,
+  selectedId:        null,
+  currentDateKey:    null,
+  dayScores:         {},
+  sad:               {},
+  leaderboardScope:  "today",  // "today" | "all"
 };
 
 const SEED_STUDENTS = () => (window.DEFAULT_STUDENTS || []).slice();
@@ -92,15 +99,28 @@ function todayKey() {
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 }
 
-function loadState() {
-  loadActiveClass();
-  loadClassData();
+function ensureToday() {
+  if (!state.currentDateKey) state.currentDateKey = todayKey();
+  if (!state.dayScores[state.currentDateKey]) state.dayScores[state.currentDateKey] = {};
+  return state.dayScores[state.currentDateKey];
+}
+
+function totalScoreFor(studentId) {
+  let total = 0;
+  for (const day of Object.keys(state.dayScores)) {
+    const v = state.dayScores[day]?.[studentId];
+    if (typeof v === "number") total += v;
+  }
+  return total;
+}
+
+function sumPts(bag) {
+  let t = 0;
+  for (const v of Object.values(bag || {})) t += (v || 0);
+  return t;
 }
 
 /* ---------- Avatar fallback ---------- */
-/* If a student's avatar image fails to load, draw a cartoon-style
-   placeholder using their initials. Keeps the app working even when
-   avatar images are missing or being added. */
 function withAvatarFallback(imgEl, student) {
   imgEl.addEventListener("error", () => {
     const initials = (student.name || "?").trim().slice(0, 2).toUpperCase();
@@ -129,143 +149,93 @@ function selectStudent(id) {
 
 function rewardPoints(amount) {
   if (!state.selectedId) return;
-  const s = state.students.find(x => x.id === state.selectedId);
-  if (!s) return;
-  s.points = (s.points || 0) + amount;
-  saveAll();
+  if (!studentsForActiveClass().some(s => s.id === state.selectedId)) return;
+  if (state.currentDateKey !== todayKey()) {
+    state.currentDateKey = todayKey();
+    state.sad = {};
+  }
+  const today = ensureToday();
+  today[state.selectedId] = (today[state.selectedId] || 0) + amount;
+  saveDayScores();
+  saveCurrentDate();
+  if (Object.keys(state.sad).length) saveSad();
   sfx.happy();
-  animatePop(s.id, `+${amount}`);
+  animatePop(state.selectedId, `+${amount}`);
   render();
 }
 
 function giveSad() {
   if (!state.selectedId) return;
-  state.sadToday[state.selectedId] = true;
-  saveAll();
+  if (!studentsForActiveClass().some(s => s.id === state.selectedId)) return;
+  if (state.currentDateKey !== todayKey()) {
+    state.currentDateKey = todayKey();
+    state.sad = {};
+  }
+  state.sad[state.selectedId] = true;
+  saveSad();
   sfx.sad();
   render();
 }
 
 function clearSad(id) {
-  delete state.sadToday[id];
-  saveAll();
+  delete state.sad[id];
+  saveSad();
   render();
 }
 
 function removeStudent(id) {
-  if (!confirm("Remove this student?")) return;
-  state.students = state.students.filter(s => s.id !== id);
-  delete state.sadToday[id];
+  if (!confirm(`Clear all history for ${id}? (Roster stays in students.js)`)) return;
+  delete state.sad[id];
+  for (const day of Object.keys(state.dayScores)) {
+    if (state.dayScores[day]) {
+      delete state.dayScores[day][id];
+      if (Object.keys(state.dayScores[day]).length === 0) delete state.dayScores[day];
+    }
+  }
   if (state.selectedId === id) state.selectedId = null;
-  saveAll();
+  saveDayScores();
+  saveSad();
   render();
 }
 
 function addStudent(name) {
   const clean = (name || "").trim();
   if (!clean) return;
-  const id = clean.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 24) + "-" + Date.now().toString(36);
-  state.students.push({ id, name: clean, avatar: `assets/images/${id}.png`, points: 0 });
-  saveAll();
-  render();
+  const id = clean.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 24);
+  alert(`To add "${clean}" permanently, add { id: "${id}", name: "${clean}", tier: "young" } to students.js and reload.`);
 }
 
 function resetAll() {
-  if (!confirm("This will reset every student's points and the sad-face list. Continue?")) return;
-  state.students.forEach(s => s.points = 0);
-  state.sadToday = {};
-  saveAll();
+  if (!confirm("Reset every student's points and the sad-face list across ALL days? Continue?")) return;
+  state.dayScores = {};
+  state.sad = {};
+  state.dayScores[state.currentDateKey] = {};
+  saveDayScores();
+  saveSad();
   render();
 }
 
 function resetToDefault() {
-  if (!confirm("Replace the roster with the default class in students.js?")) return;
-  state.students = DEFAULT_STUDENTS.slice();
-  state.sadToday = {};
-  saveAll();
+  if (!confirm("Reset all points, all history, and the sad-face list? Continue?")) return;
+  state.dayScores = {};
+  state.sad = {};
+  state.dayScores[state.currentDateKey] = {};
+  state.selectedId = null;
+  saveDayScores();
+  saveSad();
   render();
 }
 
 /* ---------- Animation helper ---------- */
 function animatePop(studentId, label) {
-  const el = document.querySelector(`[data-student-id="${studentId}"]`);
-  if (!el) return;
-  el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop");
+  const card = document.querySelector(`.student-card[data-student-id="${studentId}"]`);
+  if (!card) return;
+  card.classList.remove("pop"); void card.offsetWidth; card.classList.add("pop");
   const tag = document.createElement("div");
   tag.className = "float-num";
   tag.textContent = label;
-  el.appendChild(tag);
+  card.appendChild(tag);
   setTimeout(() => tag.remove(), 950);
-}
-
-/* ---------- Rendering ---------- */
-/* ---------- Leaderboard (scoped to the active class) ---------- */
-function renderLeaderboard() {
-  const list = document.getElementById("leaderboard");
-  list.innerHTML = "";
-  const students = studentsForActiveClass();
-  const ranked = students
-    .map(s => ({ s, pts: state.points[s.id] || 0 }))
-    .sort((a, b) => b.pts - a.pts || a.s.name.localeCompare(b.s.name));
-  if (ranked.every(r => r.pts === 0)) {
-    list.innerHTML = `<li class="empty">No points yet — give out some rewards!</li>`;
-    return;
-  }
-  ranked.slice(0, 5).forEach((r, i) => {
-    const li = document.createElement("li");
-    li.innerHTML = `
-      <span class="rank">#${i + 1}</span>
-      <span class="who">${r.s.name}</span>
-      <span class="score">${r.pts} pts</span>
-    `;
-    list.appendChild(li);
-  });
-}
-
-/* ---------- Modals ---------- */
-function openAddStudent() {
-  const back = el("div", "modal-backdrop");
-  const modal = el("div", "modal");
-  modal.appendChild(el("h2", null, "Add a student"));
-  const label = el("label", null, "Name");
-  const input = document.createElement("input");
-  input.type = "text"; input.placeholder = "e.g. Sarah"; input.maxLength = 30;
-  modal.appendChild(label); modal.appendChild(input);
-  const help = el("p", "help",
-    "An avatar image will be generated if no image is found in assets/images/.");
-  modal.appendChild(help);
-  const row = el("div", "row");
-  row.appendChild(button("Cancel", "btn btn-settings", closeModal));
-  row.appendChild(button("Add", "btn btn-primary", () => { addStudent(input.value); closeModal(); }));
-  modal.appendChild(row);
-  back.appendChild(modal); back.addEventListener("click", (e) => { if (e.target === back) closeModal(); });
-  document.body.appendChild(back);
-  input.focus();
-  input.addEventListener("keydown", (e) => { if (e.key === "Enter") addStudent(input.value), closeModal(); });
-}
-
-function openSettings() {
-  const back = el("div", "modal-backdrop");
-  const modal = el("div", "modal");
-  modal.appendChild(el("h2", null, "Settings"));
-  const row = el("div", "row");
-  row.style.flexWrap = "wrap"; row.style.justifyContent = "flex-start";
-  row.appendChild(button("Add student", "btn btn-add", () => { closeModal(); openAddStudent(); }));
-  row.appendChild(button("Reset all points", "btn btn-remove", () => { closeModal(); resetAll(); }));
-  row.appendChild(button("Reset to default class", "btn btn-remove", () => { closeModal(); resetToDefault(); }));
-  const close = el("div", "row");
-  close.appendChild(button("Close", "btn btn-settings", closeModal));
-  modal.appendChild(row);
-  modal.appendChild(el("p", "help",
-    "Sad-face warnings clear automatically at the start of each new day (new class)."));
-  modal.appendChild(close);
-  back.appendChild(modal);
-  back.addEventListener("click", (e) => { if (e.target === back) closeModal(); });
-  document.body.appendChild(back);
-}
-
-function closeModal() {
-  document.querySelectorAll(".modal-backdrop").forEach(n => n.remove());
 }
 
 /* ---------- DOM helpers ---------- */
@@ -282,9 +252,57 @@ function button(label, cls, onClick) {
   return b;
 }
 
+/* ---------- Modals ---------- */
+function openAddStudent() {
+  const back = el("div", "modal-backdrop");
+  const modal = el("div", "modal");
+  modal.appendChild(el("h2", null, "Add a student"));
+  modal.appendChild(el("label", null, "Name"));
+  const input = document.createElement("input");
+  input.type = "text"; input.placeholder = "e.g. Sarah"; input.maxLength = 30;
+  modal.appendChild(input);
+  modal.appendChild(el("p", "help",
+    "An avatar image will be generated if no image is found in assets/images/."));
+  const row = el("div", "row");
+  row.appendChild(button("Cancel", "btn btn-settings", closeModal));
+  row.appendChild(button("Add", "btn btn-primary", () => { addStudent(input.value); closeModal(); }));
+  modal.appendChild(row);
+  back.appendChild(modal);
+  back.addEventListener("click", (e) => { if (e.target === back) closeModal(); });
+  document.body.appendChild(back);
+  input.focus();
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") { addStudent(input.value); closeModal(); } });
+}
+
+function openSettings() {
+  const back = el("div", "modal-backdrop");
+  const modal = el("div", "modal");
+  modal.appendChild(el("h2", null, "Settings"));
+  const row = el("div", "row");
+  row.style.flexWrap = "wrap";
+  row.style.justifyContent = "flex-start";
+  row.appendChild(button("Add student", "btn btn-add", () => { closeModal(); openAddStudent(); }));
+  row.appendChild(button("Reset all points", "btn btn-remove", () => { closeModal(); resetAll(); }));
+  row.appendChild(button("Reset to default class", "btn btn-remove", () => { closeModal(); resetToDefault(); }));
+  modal.appendChild(row);
+  modal.appendChild(el("p", "help",
+    "Sad-face warnings clear automatically at the start of each new day."));
+  const close = el("div", "row");
+  close.appendChild(button("Close", "btn btn-settings", closeModal));
+  modal.appendChild(close);
+  back.appendChild(modal);
+  back.addEventListener("click", (e) => { if (e.target === back) closeModal(); });
+  document.body.appendChild(back);
+}
+
+function closeModal() {
+  document.querySelectorAll(".modal-backdrop").forEach(n => n.remove());
+}
+
 /* ---------- Class selector ---------- */
 function renderClassPicker() {
   const wrap = document.getElementById("class-picker");
+  if (!wrap) return;
   wrap.innerHTML = "";
   CLASSES.forEach(c => {
     const btn = document.createElement("button");
@@ -308,17 +326,20 @@ function switchClass(newId) {
   updateButtonStates();
 }
 
-/* ---------- Roster grid (one card per student in the active class) ---------- */
+/* ---------- Roster grid ---------- */
 function renderRoster() {
   const grid = document.getElementById("student-grid");
+  if (!grid) return;
   grid.innerHTML = "";
   const students = studentsForActiveClass();
+  const todayBag = state.dayScores[state.currentDateKey] || {};
   if (students.length === 0) {
     grid.innerHTML = `<p class="empty">No students in this class yet.</p>`;
     return;
   }
   students.forEach(s => {
-    const pts = state.points[s.id] || 0;
+    const dayPts = todayBag[s.id] || 0;
+    const totalPts = totalScoreFor(s.id);
     const isSad = !!state.sad[s.id];
     const isSelected = state.selectedId === s.id;
     const card = document.createElement("button");
@@ -332,40 +353,287 @@ function renderRoster() {
         ${isSad ? `<span class="sad-pin" aria-label="marked sad">☹</span>` : ``}
       </div>
       <span class="name">${s.name}</span>
-      <span class="points" aria-label="${pts} points">${pts} pts</span>
+      <span class="points">
+        <span class="day-points" aria-label="points today">${dayPts}</span>
+        <span class="day-points-label">today</span>
+        <span class="total-points" aria-label="total points">· ${totalPts} all-time</span>
+      </span>
     `;
     card.addEventListener("click", () => selectStudent(s.id));
     grid.appendChild(card);
   });
 }
 
-/* ---------- Boot ---------- */
-loadState();
-renderClassPicker();
-renderRoster();
-renderLeaderboard();
-updateButtonStates();
+/* ---------- Leaderboard ---------- */
+function renderLeaderboard() {
+  const list = document.getElementById("leaderboard");
+  const label = document.getElementById("leaderboard-scope-label");
+  if (!list) return;
+  if (label) label.textContent = state.leaderboardScope === "all" ? "All-time" : "Today";
+  list.innerHTML = "";
+  const students = studentsForActiveClass();
+  const todayBag = state.dayScores[state.currentDateKey] || {};
+  const ranked = students
+    .map(s => {
+      const pts = state.leaderboardScope === "all"
+        ? totalScoreFor(s.id)
+        : (todayBag[s.id] || 0);
+      return { s, pts };
+    })
+    .sort((a, b) => b.pts - a.pts || a.s.name.localeCompare(b.s.name));
+  if (ranked.every(r => r.pts === 0)) {
+    const msg = state.leaderboardScope === "all"
+      ? "No points recorded yet."
+      : "No points yet today — give out some rewards!";
+    list.innerHTML = `<li class="empty">${msg}</li>`;
+    return;
+  }
+  ranked.slice(0, 5).forEach((r, i) => {
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <span class="rank">#${i + 1}</span>
+      <span class="who">${r.s.name}</span>
+      <span class="score">${r.pts} pts</span>
+    `;
+    list.appendChild(li);
+  });
+}
 
-// Save class-scoped points and sad map.
-function savePoints() { localStorage.setItem(classKey("points"), JSON.stringify(state.points)); }
-function saveSad()    { localStorage.setItem(classKey("sad"),    JSON.stringify(state.sad)); }
+function toggleLeaderboardScope() {
+  state.leaderboardScope = state.leaderboardScope === "all" ? "today" : "all";
+  localStorage.setItem(LS_LEADERBOARD_SCOPE, state.leaderboardScope);
+  renderLeaderboard();
+  const btn = document.getElementById("leaderboard-toggle");
+  if (btn) btn.textContent = state.leaderboardScope === "all" ? "Show today" : "Show all-time";
+}
 
+/* ---------- Calendar / Day history modal ---------- */
+function openCalendar() {
+  const back = el("div", "modal-backdrop");
+  const modal = el("div", "modal modal-wide");
+  modal.appendChild(el("h2", null, "📅 Class history"));
+
+  const monthLabel = el("div", "cal-month-label");
+  const prev = el("button", "btn btn-settings", "‹");
+  prev.type = "button";
+  const next = el("button", "btn btn-settings", "›");
+  next.type = "button";
+  const monthRow = el("div", "cal-month-row");
+  monthRow.appendChild(prev);
+  monthRow.appendChild(monthLabel);
+  monthRow.appendChild(next);
+  modal.appendChild(monthRow);
+
+  const grid = el("div", "cal-grid");
+  modal.appendChild(grid);
+
+  modal.appendChild(el("p", "help", "Tap a day to see what each student earned."));
+
+  const dayDetail = el("div", "cal-day-detail");
+  modal.appendChild(dayDetail);
+
+  const closeRow = el("div", "row");
+  closeRow.appendChild(button("Close", "btn btn-settings", closeModal));
+  modal.appendChild(closeRow);
+
+  back.appendChild(modal);
+  back.addEventListener("click", (e) => { if (e.target === back) closeModal(); });
+  document.body.appendChild(back);
+
+  let cursor = calendarCursorInit();
+  function refresh() {
+    monthLabel.textContent = cursor.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    renderCalendarGrid(grid, cursor, dayDetail, refresh);
+  }
+  prev.addEventListener("click", () => { cursor = new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1); refresh(); });
+  next.addEventListener("click", () => { cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1); refresh(); });
+  refresh();
+}
+
+function calendarCursorInit() {
+  let latest = null;
+  for (const k of Object.keys(state.dayScores)) {
+    if (state.dayScores[k] && Object.keys(state.dayScores[k]).length) {
+      if (!latest || k > latest) latest = k;
+    }
+  }
+  if (latest) {
+    const [y, m] = latest.split("-").map(Number);
+    return new Date(y, m - 1, 1);
+  }
+  const t = new Date();
+  return new Date(t.getFullYear(), t.getMonth(), 1);
+}
+
+function renderCalendarGrid(grid, monthDate, dayDetail, refresh) {
+  grid.innerHTML = "";
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay  = new Date(year, month + 1, 0);
+  // Mon = 0 ... Sun = 6 (UK-first)
+  const startOffset = (firstDay.getDay() + 6) % 7;
+
+  ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].forEach(d => {
+    grid.appendChild(el("div", "cal-day-head", d));
+  });
+
+  for (let i = 0; i < startOffset; i++) {
+    grid.appendChild(el("div", "cal-cell cal-blank"));
+  }
+
+  const students = studentsForActiveClass();
+  const maxDayPts = computeMaxDayPts(year, month);
+
+  for (let day = 1; day <= lastDay.getDate(); day++) {
+    const cell = document.createElement("button");
+    cell.type = "button";
+    cell.className = "cal-cell";
+    const key = `${year}-${month + 1}-${day}`;
+    const isToday = key === state.currentDateKey;
+    const dayBag = state.dayScores[key] || {};
+    const total = sumPts(dayBag);
+    cell.classList.add(total > 0 ? "has-data" : "cal-empty");
+    if (isToday) cell.classList.add("cal-today");
+    if (total > 0) {
+      const intensity = maxDayPts > 0 ? Math.min(1, total / maxDayPts) : 0.4;
+      cell.style.setProperty("--cal-intensity", intensity.toFixed(2));
+    }
+    cell.innerHTML = `<span class="cal-day-num">${day}</span>${total > 0 ? `<span class="cal-day-pts">${total}</span>` : ""}`;
+    cell.addEventListener("click", () => {
+      renderDayDetail(dayDetail, key, dayBag, students);
+      grid.querySelectorAll(".cal-cell.cal-selected").forEach(n => n.classList.remove("cal-selected"));
+      cell.classList.add("cal-selected");
+    });
+    grid.appendChild(cell);
+  }
+}
+
+function computeMaxDayPts(year, month) {
+  let max = 0;
+  for (const [k, bag] of Object.entries(state.dayScores)) {
+    const [y, m] = k.split("-").map(Number);
+    if (y === year && m === month + 1) {
+      const t = sumPts(bag);
+      if (t > max) max = t;
+    }
+  }
+  return max;
+}
+
+function renderDayDetail(container, key, dayBag, students) {
+  container.innerHTML = "";
+  const [y, m, d] = key.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  const dateStr = date.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  container.appendChild(el("h3", null, dateStr));
+
+  if (!students.length) {
+    container.appendChild(el("p", "muted", "No students in this class."));
+    return;
+  }
+  if (sumPts(dayBag) === 0) {
+    container.appendChild(el("p", "muted", "No points were recorded on this day."));
+    return;
+  }
+
+  const ranked = students
+    .map(s => ({ s, pts: dayBag[s.id] || 0 }))
+    .filter(r => r.pts > 0)
+    .sort((a, b) => b.pts - a.pts || a.s.name.localeCompare(b.s.name));
+
+  const ol = el("ol", "cal-day-list");
+  ranked.forEach((r, i) => {
+    const li = el("li");
+    li.innerHTML = `<span class="rank">#${i + 1}</span><span class="who">${r.s.name}</span><span class="score">${r.pts} pts</span>`;
+    ol.appendChild(li);
+  });
+  container.appendChild(ol);
+}
+
+/* ---------- Top bar wiring ---------- */
+function renderTodayLabel() {
+  const el = document.getElementById("today-label");
+  if (!el) return;
+  const d = new Date();
+  el.textContent = d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+}
+
+function wireTopBar() {
+  const set = document.getElementById("settings-btn");
+  if (set) set.addEventListener("click", openSettings);
+  const cal = document.getElementById("calendar-btn");
+  if (cal) cal.addEventListener("click", openCalendar);
+  const lb = document.getElementById("leaderboard-toggle");
+  if (lb) lb.addEventListener("click", toggleLeaderboardScope);
+  document.querySelectorAll("[data-action]").forEach(b => {
+    const a = b.getAttribute("data-action");
+    b.addEventListener("click", () => {
+      if (a === "+1") rewardPoints(1);
+      else if (a === "+2") rewardPoints(2);
+      else if (a === "+3") rewardPoints(3);
+      else if (a === "sad") giveSad();
+    });
+  });
+}
+
+/* ---------- Persistence ---------- */
+function saveDayScores()    { localStorage.setItem(classKey("days"),         JSON.stringify(state.dayScores)); }
+function saveCurrentDate()  { localStorage.setItem(classKey("currentDate"),  state.currentDateKey); }
+function saveSad()          { localStorage.setItem(classKey("sad"),          JSON.stringify(state.sad)); }
+
+/* ---------- Load ---------- */
 function loadActiveClass() {
   const stored = localStorage.getItem(LS_ACTIVE);
   state.activeClassId = CLASSES.some(c => c.id === stored) ? stored : CLASSES[0].id;
 }
 
 function loadClassData() {
-  try { state.points = JSON.parse(localStorage.getItem(classKey("points")) || "{}"); } catch { state.points = {}; }
-  try { state.sad    = JSON.parse(localStorage.getItem(classKey("sad"))    || "{}"); } catch { state.sad    = {}; }
-  // Trim state down to current class students only (drops unknowns from old classes).
+  // Re-pin "current day" to *real* today on every load (in case the
+  // app was left open across midnight).
+  const fresh = todayKey();
+  state.currentDateKey = fresh;
+
+  try { state.dayScores = JSON.parse(localStorage.getItem(classKey("days")) || "{}"); } catch { state.dayScores = {}; }
+  try { state.sad       = JSON.parse(localStorage.getItem(classKey("sad"))   || "{}"); } catch { state.sad       = {}; }
+
+  if (!state.dayScores[state.currentDateKey]) state.dayScores[state.currentDateKey] = {};
+
+  // Drop entries for student ids that are no longer in this class.
   const validIds = new Set(studentsForActiveClass().map(s => s.id));
-  for (const k of Object.keys(state.points)) if (!validIds.has(k)) delete state.points[k];
-  for (const k of Object.keys(state.sad))    if (!validIds.has(k)) delete state.sad[k];
+  for (const day of Object.keys(state.dayScores)) {
+    const bag = state.dayScores[day];
+    for (const k of Object.keys(bag)) if (!validIds.has(k)) delete bag[k];
+  }
+  for (const k of Object.keys(state.sad)) if (!validIds.has(k)) delete state.sad[k];
 }
 
-// Only the students in the current class are valid selections.
+function loadState() {
+  // Restore global UI preferences.
+  const scope = localStorage.getItem(LS_LEADERBOARD_SCOPE);
+  if (scope === "all" || scope === "today") state.leaderboardScope = scope;
+
+  loadActiveClass();
+  loadClassData();
+}
+
 function updateButtonStates() {
   const enabled = state.selectedId != null && studentsForActiveClass().some(s => s.id === state.selectedId);
   document.querySelectorAll("[data-action]").forEach(b => { b.disabled = !enabled; });
 }
+
+function render() {
+  renderClassPicker();
+  renderRoster();
+  renderLeaderboard();
+  updateButtonStates();
+  renderTodayLabel();
+  // Keep the leaderboard toggle's label in sync with the saved scope.
+  const lb = document.getElementById("leaderboard-toggle");
+  if (lb) lb.textContent = state.leaderboardScope === "all" ? "Show today" : "Show all-time";
+}
+
+/* ---------- Boot ---------- */
+loadState();
+wireTopBar();
+render();

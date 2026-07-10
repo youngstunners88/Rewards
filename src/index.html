@@ -10,11 +10,18 @@
     <main id="app">
       <header class="app-header">
         <h1>⭐ Rewards</h1>
-        <button id="settings-btn" class="btn btn-ghost" type="button">⚙ Settings</button>
+        <div class="header-actions">
+          <button id="calendar-btn" class="btn btn-ghost" type="button" aria-label="Open class history">📅 History</button>
+          <button id="settings-btn" class="btn btn-ghost" type="button">⚙ Settings</button>
+        </div>
       </header>
 
       <section class="class-picker-wrap" aria-label="Choose class">
         <div id="class-picker" class="class-picker"></div>
+      </section>
+
+      <section class="date-bar" aria-label="Today">
+        <span id="today-label" class="today-label"></span>
       </section>
 
       <section class="reward-bar" aria-label="Give points">
@@ -30,7 +37,10 @@
       </section>
 
       <section class="leaderboard-wrap" aria-label="Leaderboard">
-        <h2>🏆 Leaderboard</h2>
+        <div class="leaderboard-head">
+          <h2>🏆 Leaderboard — <span id="leaderboard-scope-label">Today</span></h2>
+          <button id="leaderboard-toggle" class="btn btn-ghost btn-sm" type="button">Show all-time</button>
+        </div>
         <ol id="leaderboard" class="leaderboard"></ol>
       </section>
     </main>

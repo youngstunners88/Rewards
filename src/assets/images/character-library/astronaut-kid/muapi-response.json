@@ -1,0 +1,43 @@
+{
+  "id": "44191119-169b-4573-a343-89406a6302b5",
+  "urls": {
+    "get": "https://api.muapi.ai/api/v1/predictions/44191119-169b-4573-a343-89406a6302b5/result"
+  },
+  "error": "",
+  "model": "unknown",
+  "inputs": {
+    "seed": null,
+    "chaos": 30,
+    "weird": 15,
+    "prompt": "A child space explorer with fishbowl helmet containing a tiny galaxy, nebula suit, constellation patterns and star-trail boots, floating zero-g pose, cosmic purple and gold., playful original cartoon character for a classroom reward avatar, stylized animation, bold clean outlines, flat cel shading, saturated bright colours, expressive face, dynamic pose, readable silhouette at 80x80 pixels, full body, centred composition, clean simple gradient background, kid-friendly, age-appropriate, no readable text, no brand logos, no existing character likenesses, no photorealism, no hyper-realistic textures, playful child-safe fantasy, no scary imagery",
+    "stylize": 700,
+    "image_url": null,
+    "aspect_ratio": "1:1",
+    "negative_prompt": "photorealism, hyper-realistic textures, existing copyrighted characters, brand logos, readable text, scary imagery, adult themes"
+  },
+  "status": "completed",
+  "outputs": [
+    "https://cdn.muapi.ai/outputs/generated/8ddcc086e5914921b75f79c203edf1af.png",
+    "https://cdn.muapi.ai/outputs/generated/c7e126794c7a48518c0a3419e9301157.png",
+    "https://cdn.muapi.ai/outputs/generated/4b805e3f8e3441048dcff0199627a89c.png",
+    "https://cdn.muapi.ai/outputs/generated/1ef39c143a0845a1aa768b97874c4c7e.png"
+  ],
+  "timings": {
+    "inference": 50978.59299999999
+  },
+  "created_at": "2026-07-18T04:28:50.631515+00:00",
+  "expires_at": "2026-08-17T04:28:50.631515+00:00",
+  "executionTime": 50978.59299999999,
+  "has_nsfw_contents": [
+    false,
+    false,
+    false,
+    false
+  ],
+  "cost": {
+    "amount_usd": 0.1,
+    "amount_credits": 8,
+    "bonus_credits_used": 0,
+    "refunded": false
+  }
+}

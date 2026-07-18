@@ -1,0 +1,43 @@
+{
+  "id": "7dd56798-54cc-4529-b573-dc7ce3b8e7e5",
+  "urls": {
+    "get": "https://api.muapi.ai/api/v1/predictions/7dd56798-54cc-4529-b573-dc7ce3b8e7e5/result"
+  },
+  "error": "",
+  "model": "unknown",
+  "inputs": {
+    "seed": null,
+    "chaos": 30,
+    "weird": 15,
+    "prompt": "A child street-ball hero with spray-paint hands, paint-drip hair and original moving murals, generic basketball jersey with no logo, paint-splash dunk, neon rainbow palette., playful original cartoon character for a classroom reward avatar, stylized animation, bold clean outlines, flat cel shading, saturated bright colours, expressive face, dynamic pose, readable silhouette at 80x80 pixels, full body, centred composition, clean simple gradient background, kid-friendly, age-appropriate, no readable text, no brand logos, no existing character likenesses, no photorealism, no hyper-realistic textures, playful child-safe fantasy, no scary imagery",
+    "stylize": 700,
+    "image_url": null,
+    "aspect_ratio": "1:1",
+    "negative_prompt": "photorealism, hyper-realistic textures, existing copyrighted characters, brand logos, readable text, scary imagery, adult themes"
+  },
+  "status": "completed",
+  "outputs": [
+    "https://cdn.muapi.ai/outputs/generated/957cd80c9bb04360b6a6081b1b3fc0bc.png",
+    "https://cdn.muapi.ai/outputs/generated/112e361bc3984208a679881a5565a9cc.png",
+    "https://cdn.muapi.ai/outputs/generated/b20e67c17ed54fa7b23fdcc1908d269d.png",
+    "https://cdn.muapi.ai/outputs/generated/0b619f9b9260451d82fad687ec12bf7b.png"
+  ],
+  "timings": {
+    "inference": 50904.832
+  },
+  "created_at": "2026-07-18T04:26:57.568090+00:00",
+  "expires_at": "2026-08-17T04:26:57.568090+00:00",
+  "executionTime": 50904.832,
+  "has_nsfw_contents": [
+    false,
+    false,
+    false,
+    false
+  ],
+  "cost": {
+    "amount_usd": 0.1,
+    "amount_credits": 8,
+    "bonus_credits_used": 0,
+    "refunded": false
+  }
+}

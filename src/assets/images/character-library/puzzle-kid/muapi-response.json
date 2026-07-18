@@ -1,0 +1,43 @@
+{
+  "id": "a219d705-81ad-461a-b6cd-0198480e8eaf",
+  "urls": {
+    "get": "https://api.muapi.ai/api/v1/predictions/a219d705-81ad-461a-b6cd-0198480e8eaf/result"
+  },
+  "error": "",
+  "model": "unknown",
+  "inputs": {
+    "seed": null,
+    "chaos": 30,
+    "weird": 15,
+    "prompt": "A child made of interlocking puzzle pieces with a colourful cube heart, chess-piece hair, lightbulb cap and strategy board, bright-blue background, clever smirk., playful original cartoon character for a classroom reward avatar, stylized animation, bold clean outlines, flat cel shading, saturated bright colours, expressive face, dynamic pose, readable silhouette at 80x80 pixels, full body, centred composition, clean simple gradient background, kid-friendly, age-appropriate, no readable text, no brand logos, no existing character likenesses, no photorealism, no hyper-realistic textures, playful child-safe fantasy, no scary imagery",
+    "stylize": 700,
+    "image_url": null,
+    "aspect_ratio": "1:1",
+    "negative_prompt": "photorealism, hyper-realistic textures, existing copyrighted characters, brand logos, readable text, scary imagery, adult themes"
+  },
+  "status": "completed",
+  "outputs": [
+    "https://cdn.muapi.ai/outputs/generated/158e0f3142ff495b9c86af5ccca332ec.png",
+    "https://cdn.muapi.ai/outputs/generated/5bcfcf0f3653417e9faedcb26c87fe85.png",
+    "https://cdn.muapi.ai/outputs/generated/f99efe1128444b2389982f2f6af20e25.png",
+    "https://cdn.muapi.ai/outputs/generated/dcc11048e3a94f85940e33b7b67da8c4.png"
+  ],
+  "timings": {
+    "inference": 50281.662
+  },
+  "created_at": "2026-07-18T04:31:35.370197+00:00",
+  "expires_at": "2026-08-17T04:31:35.370197+00:00",
+  "executionTime": 50281.662,
+  "has_nsfw_contents": [
+    false,
+    false,
+    false,
+    false
+  ],
+  "cost": {
+    "amount_usd": 0.1,
+    "amount_credits": 8,
+    "bonus_credits_used": 0,
+    "refunded": false
+  }
+}

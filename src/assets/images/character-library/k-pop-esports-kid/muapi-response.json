@@ -1,0 +1,43 @@
+{
+  "id": "e13cc9cb-4cff-47bb-9104-8d2786362d7d",
+  "urls": {
+    "get": "https://api.muapi.ai/api/v1/predictions/e13cc9cb-4cff-47bb-9104-8d2786362d7d/result"
+  },
+  "error": "",
+  "model": "unknown",
+  "inputs": {
+    "seed": null,
+    "chaos": 30,
+    "weird": 15,
+    "prompt": "A child esports champion with holographic colour-shifting hair, simple LED emotion eyes, pixel-pattern jacket, glowing gaming mouse, arena-blue background, victory pose, no performer likeness., playful original cartoon character for a classroom reward avatar, stylized animation, bold clean outlines, flat cel shading, saturated bright colours, expressive face, dynamic pose, readable silhouette at 80x80 pixels, full body, centred composition, clean simple gradient background, kid-friendly, age-appropriate, no readable text, no brand logos, no existing character likenesses, no photorealism, no hyper-realistic textures, playful child-safe fantasy, no scary imagery",
+    "stylize": 700,
+    "image_url": null,
+    "aspect_ratio": "1:1",
+    "negative_prompt": "photorealism, hyper-realistic textures, existing copyrighted characters, brand logos, readable text, scary imagery, adult themes"
+  },
+  "status": "completed",
+  "outputs": [
+    "https://cdn.muapi.ai/outputs/generated/d3b691f467cb4e1db2fa1c75767adfbe.png",
+    "https://cdn.muapi.ai/outputs/generated/20881fe1075a4130ab6c26125655a032.png",
+    "https://cdn.muapi.ai/outputs/generated/da233f7cfd034b5994472d5822e02813.png",
+    "https://cdn.muapi.ai/outputs/generated/0983d6368fcf4fb1b0a305d8dd1d1355.png"
+  ],
+  "timings": {
+    "inference": 55766.61
+  },
+  "created_at": "2026-07-18T04:27:52.744859+00:00",
+  "expires_at": "2026-08-17T04:27:52.744859+00:00",
+  "executionTime": 55766.61,
+  "has_nsfw_contents": [
+    false,
+    false,
+    false,
+    false
+  ],
+  "cost": {
+    "amount_usd": 0.1,
+    "amount_credits": 8,
+    "bonus_credits_used": 0,
+    "refunded": false
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "id": "ea432d37-882b-4907-8a54-7e0189cd0ba4",
+  "urls": {
+    "get": "https://api.muapi.ai/api/v1/predictions/ea432d37-882b-4907-8a54-7e0189cd0ba4/result"
+  },
+  "error": "",
+  "model": "unknown",
+  "inputs": {
+    "seed": null,
+    "chaos": 30,
+    "weird": 15,
+    "prompt": "A friendly insectoid child fencing champion with one mantis raptorial arm, disco compound eyes, antenna hair buns, white fencing uniform with green trim, emerald background, confident grin., playful original cartoon character for a classroom reward avatar, stylized animation, bold clean outlines, flat cel shading, saturated bright colours, expressive face, dynamic pose, readable silhouette at 80x80 pixels, full body, centred composition, clean simple gradient background, kid-friendly, age-appropriate, no readable text, no brand logos, no existing character likenesses, no photorealism, no hyper-realistic textures, playful child-safe fantasy, no scary imagery",
+    "stylize": 700,
+    "image_url": null,
+    "aspect_ratio": "1:1",
+    "negative_prompt": "photorealism, hyper-realistic textures, existing copyrighted characters, brand logos, readable text, scary imagery, adult themes"
+  },
+  "status": "completed",
+  "outputs": [
+    "https://cdn.muapi.ai/outputs/generated/c794d6cf4c4e4cd098c8df742e9b6944.png",
+    "https://cdn.muapi.ai/outputs/generated/0b6177ce9dda4825a8008e2b57b45e57.png",
+    "https://cdn.muapi.ai/outputs/generated/3ed566d6c5d84a4e90c51b08191db7e7.png",
+    "https://cdn.muapi.ai/outputs/generated/ca3fb8d1577c433eaa768f549c400747.png"
+  ],
+  "timings": {
+    "inference": 50255.034999999996
+  },
+  "created_at": "2026-07-18T03:56:43.961460+00:00",
+  "expires_at": "2026-08-17T03:56:43.961460+00:00",
+  "executionTime": 50255.034999999996,
+  "has_nsfw_contents": [
+    false,
+    false,
+    false,
+    false
+  ],
+  "cost": {
+    "amount_usd": 0.1,
+    "amount_credits": 8,
+    "bonus_credits_used": 0,
+    "refunded": false
+  }
+}

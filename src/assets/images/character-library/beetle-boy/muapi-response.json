@@ -1,0 +1,43 @@
+{
+  "id": "cbc76872-7a93-4c51-a7f7-4337e2575278",
+  "urls": {
+    "get": "https://api.muapi.ai/api/v1/predictions/cbc76872-7a93-4c51-a7f7-4337e2575278/result"
+  },
+  "error": "",
+  "model": "unknown",
+  "inputs": {
+    "seed": null,
+    "chaos": 30,
+    "weird": 15,
+    "prompt": "A child-friendly rhinoceros-beetle horn mohawk, shell shoulder pads, tiny wings behind a red-and-black generic sports jersey, cute mandibles with braces, playful rugby action pose., playful original cartoon character for a classroom reward avatar, stylized animation, bold clean outlines, flat cel shading, saturated bright colours, expressive face, dynamic pose, readable silhouette at 80x80 pixels, full body, centred composition, clean simple gradient background, kid-friendly, age-appropriate, no readable text, no brand logos, no existing character likenesses, no photorealism, no hyper-realistic textures, playful child-safe fantasy, no scary imagery",
+    "stylize": 700,
+    "image_url": null,
+    "aspect_ratio": "1:1",
+    "negative_prompt": "photorealism, hyper-realistic textures, existing copyrighted characters, brand logos, readable text, scary imagery, adult themes"
+  },
+  "status": "completed",
+  "outputs": [
+    "https://cdn.muapi.ai/outputs/generated/fd2ed6a622814ee780f90354b9f94f11.png",
+    "https://cdn.muapi.ai/outputs/generated/dd39badbcc3e4cc684d86cdbb3fcdf22.png",
+    "https://cdn.muapi.ai/outputs/generated/efabc03a4f1945059298bc3651db312b.png",
+    "https://cdn.muapi.ai/outputs/generated/afc93d19165e488bb1f326fe9cd86266.png"
+  ],
+  "timings": {
+    "inference": 51249.479
+  },
+  "created_at": "2026-07-18T03:57:38.866967+00:00",
+  "expires_at": "2026-08-17T03:57:38.866967+00:00",
+  "executionTime": 51249.479,
+  "has_nsfw_contents": [
+    false,
+    false,
+    false,
+    false
+  ],
+  "cost": {
+    "amount_usd": 0.1,
+    "amount_credits": 8,
+    "bonus_credits_used": 0,
+    "refunded": false
+  }
+}

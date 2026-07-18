@@ -1,0 +1,43 @@
+{
+  "id": "14ca5d08-f4c6-4027-bf22-277572664074",
+  "urls": {
+    "get": "https://api.muapi.ai/api/v1/predictions/14ca5d08-f4c6-4027-bf22-277572664074/result"
+  },
+  "error": "",
+  "model": "unknown",
+  "inputs": {
+    "seed": null,
+    "chaos": 30,
+    "weird": 15,
+    "prompt": "A brave child with controlled flame hair, ember patterns, rainbow-water hose, original flame-decal uniform and harmless glowing rescue tool, bright orange background, courageous grin., playful original cartoon character for a classroom reward avatar, stylized animation, bold clean outlines, flat cel shading, saturated bright colours, expressive face, dynamic pose, readable silhouette at 80x80 pixels, full body, centred composition, clean simple gradient background, kid-friendly, age-appropriate, no readable text, no brand logos, no existing character likenesses, no photorealism, no hyper-realistic textures, playful child-safe fantasy, no scary imagery",
+    "stylize": 700,
+    "image_url": null,
+    "aspect_ratio": "1:1",
+    "negative_prompt": "photorealism, hyper-realistic textures, existing copyrighted characters, brand logos, readable text, scary imagery, adult themes"
+  },
+  "status": "completed",
+  "outputs": [
+    "https://cdn.muapi.ai/outputs/generated/62a927fa114e4a1699e69af762856343.png",
+    "https://cdn.muapi.ai/outputs/generated/09f85253a40e49d8a3610fc927217de0.png",
+    "https://cdn.muapi.ai/outputs/generated/c65c5d45ba8b45eebbbcd6db0046033f.png",
+    "https://cdn.muapi.ai/outputs/generated/69638ad1d71d425ba48abf3c3d88b93d.png"
+  ],
+  "timings": {
+    "inference": 51523.967
+  },
+  "created_at": "2026-07-18T04:29:45.561232+00:00",
+  "expires_at": "2026-08-17T04:29:45.561232+00:00",
+  "executionTime": 51523.967,
+  "has_nsfw_contents": [
+    false,
+    false,
+    false,
+    false
+  ],
+  "cost": {
+    "amount_usd": 0.1,
+    "amount_credits": 8,
+    "bonus_credits_used": 0,
+    "refunded": false
+  }
+}

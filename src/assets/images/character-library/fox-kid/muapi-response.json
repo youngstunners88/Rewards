@@ -1,0 +1,43 @@
+{
+  "id": "15128024-307d-4378-8189-0badcd059386",
+  "urls": {
+    "get": "https://api.muapi.ai/api/v1/predictions/15128024-307d-4378-8189-0badcd059386/result"
+  },
+  "error": "",
+  "model": "unknown",
+  "inputs": {
+    "seed": null,
+    "chaos": 30,
+    "weird": 15,
+    "prompt": "A mischievous fox-eared child genius with fluffy tail scarf, beanie, original dark hoodie, colourful abstract laptop charts, juice box, neon green and midnight palette., playful original cartoon character for a classroom reward avatar, stylized animation, bold clean outlines, flat cel shading, saturated bright colours, expressive face, dynamic pose, readable silhouette at 80x80 pixels, full body, centred composition, clean simple gradient background, kid-friendly, age-appropriate, no readable text, no brand logos, no existing character likenesses, no photorealism, no hyper-realistic textures, playful child-safe fantasy, no scary imagery",
+    "stylize": 700,
+    "image_url": null,
+    "aspect_ratio": "1:1",
+    "negative_prompt": "photorealism, hyper-realistic textures, existing copyrighted characters, brand logos, readable text, scary imagery, adult themes"
+  },
+  "status": "completed",
+  "outputs": [
+    "https://cdn.muapi.ai/outputs/generated/1ce0cb763be14ac091caaca66b9be403.png",
+    "https://cdn.muapi.ai/outputs/generated/37bba3701ebc4919acbfcec24b181023.png",
+    "https://cdn.muapi.ai/outputs/generated/34f927d6a5f746cb98955e73396ecfc0.png",
+    "https://cdn.muapi.ai/outputs/generated/52cffd0e48434ce4bf352670aad9a784.png"
+  ],
+  "timings": {
+    "inference": 50584.933
+  },
+  "created_at": "2026-07-18T04:23:13.055650+00:00",
+  "expires_at": "2026-08-17T04:23:13.055650+00:00",
+  "executionTime": 50584.933,
+  "has_nsfw_contents": [
+    false,
+    false,
+    false,
+    false
+  ],
+  "cost": {
+    "amount_usd": 0.1,
+    "amount_credits": 8,
+    "bonus_credits_used": 0,
+    "refunded": false
+  }
+}

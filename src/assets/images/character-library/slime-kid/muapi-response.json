@@ -1,0 +1,43 @@
+{
+  "id": "d6d75282-e726-4b25-b196-d4a4f53b1825",
+  "urls": {
+    "get": "https://api.muapi.ai/api/v1/predictions/d6d75282-e726-4b25-b196-d4a4f53b1825/result"
+  },
+  "error": "",
+  "model": "unknown",
+  "inputs": {
+    "seed": null,
+    "chaos": 30,
+    "weird": 15,
+    "prompt": "A harmless translucent neon-green slime child with floating eyes, wobbly silhouette, slime lab coat and bubbling beakers, bubblegum-pink accents, goofy grin., playful original cartoon character for a classroom reward avatar, stylized animation, bold clean outlines, flat cel shading, saturated bright colours, expressive face, dynamic pose, readable silhouette at 80x80 pixels, full body, centred composition, clean simple gradient background, kid-friendly, age-appropriate, no readable text, no brand logos, no existing character likenesses, no photorealism, no hyper-realistic textures, playful child-safe fantasy, no scary imagery",
+    "stylize": 700,
+    "image_url": null,
+    "aspect_ratio": "1:1",
+    "negative_prompt": "photorealism, hyper-realistic textures, existing copyrighted characters, brand logos, readable text, scary imagery, adult themes"
+  },
+  "status": "completed",
+  "outputs": [
+    "https://cdn.muapi.ai/outputs/generated/e52c46dc961d4665866fd8ab1b47be20.png",
+    "https://cdn.muapi.ai/outputs/generated/4a37c43a274a41b0afa03efd09c0654a.png",
+    "https://cdn.muapi.ai/outputs/generated/a0885fb2e5764f3aaa9a536cd69ce4d0.png",
+    "https://cdn.muapi.ai/outputs/generated/523d61f69c62490a801e86cbdea5fe34.png"
+  ],
+  "timings": {
+    "inference": 54791.59
+  },
+  "created_at": "2026-07-18T04:25:04.657394+00:00",
+  "expires_at": "2026-08-17T04:25:04.657394+00:00",
+  "executionTime": 54791.59,
+  "has_nsfw_contents": [
+    false,
+    false,
+    false,
+    false
+  ],
+  "cost": {
+    "amount_usd": 0.1,
+    "amount_credits": 8,
+    "bonus_credits_used": 0,
+    "refunded": false
+  }
+}

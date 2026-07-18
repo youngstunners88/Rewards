@@ -1,0 +1,28 @@
+{
+  "provider": "muapi",
+  "model": "midjourney-niji",
+  "aspect_ratio": "1:1",
+  "requested_runs": 16,
+  "expected_variants_per_run": 4,
+  "expected_images": 64,
+  "cost_estimate_usd": 1.6,
+  "output_root": "src/assets/images/character-library",
+  "characters": [
+    {"slug":"octo-kid","title":"Octo-Kid"},
+    {"slug":"dj-kraken","title":"DJ Kraken"},
+    {"slug":"mantis-kid","title":"Mantis-Kid"},
+    {"slug":"beetle-boy","title":"Beetle-Boy"},
+    {"slug":"shark-kid","title":"Shark-Kid"},
+    {"slug":"fox-kid","title":"Fox-Kid"},
+    {"slug":"crystal-kid","title":"Crystal-Kid"},
+    {"slug":"slime-kid","title":"Slime-Kid"},
+    {"slug":"robot-kid","title":"Robot-Kid"},
+    {"slug":"graffiti-kid","title":"Graffiti-Kid"},
+    {"slug":"k-pop-esports-kid","title":"K-Pop-Kid / esports champion"},
+    {"slug":"astronaut-kid","title":"Astronaut-Kid"},
+    {"slug":"firefighter-kid","title":"Firefighter-Kid"},
+    {"slug":"cloud-kid","title":"Cloud-Kid"},
+    {"slug":"puzzle-kid","title":"Puzzle-Kid"},
+    {"slug":"rocket-kid","title":"Rocket-Kid"}
+  ]
+}

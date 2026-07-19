@@ -11,7 +11,7 @@
   },
   "devDependencies": {
     "electron": "^31.0.0",
-    "electron-builder": "^24.13.3",
+    "electron-builder": "^26.15.7",
     "png2icons": "^2.0.1"
   },
   "build": {

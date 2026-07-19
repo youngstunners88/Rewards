@@ -5,4 +5,10 @@ node_modules/
 .env.local
 .vercel
 dist/
-build/
+
+# Windows .ico intentionally excluded: electron-builder's app-builder icon-converter
+# panics packaging NSIS with any .ico here (Pillow- and png2icons-generated tested,
+# both fail identically on Windows CI runners). NSIS falls back to Electron's default
+# icon instead. Regenerate at build/icon.ico locally with `node scripts/generate_icons.js`
+# if a future electron-builder version fixes this and you want to re-enable it.
+build/icon.ico

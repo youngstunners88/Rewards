@@ -205,7 +205,11 @@ body {
   border-radius: 10px; font-family: inherit; font-size: 1rem;
 }
 .modal input[type=text]:focus { outline: 3px solid #1d4ed8; outline-offset: 1px; }
-.modal .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
+.modal .row {
+  display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap;
+  position: sticky; bottom: 0; background: var(--card);
+  padding: 10px 0 4px; border-top: 2px solid #f1f3f5; z-index: 2;
+}
 .modal .help { font-size: 0.85rem; color: #666; margin-top: 6px; }
 
 /* Avatar picker grid (30-avatar gallery) */

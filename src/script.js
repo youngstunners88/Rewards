@@ -22,6 +22,52 @@ function classKey(field) { return LS_PREFIX + activeClassId() + "." + field; }
 
 const DEFAULT_STUDENTS = window.DEFAULT_STUDENTS || [];
 
+/* ---------- Avatar gallery + cross-class claim registry ----------
+   AVATAR_GALLERY (avatars.js) holds 30 selectable characters.
+   Claims are GLOBAL (not scoped per class) because on a single
+   teacher device, every class shares the same browser storage —
+   so "unavailable once picked by any student in any class" is
+   satisfied by simply NOT prefixing this key with the class id. */
+const LS_AVATAR_CLAIMS = "rewards.avatarClaims.v1";
+const AVATAR_GALLERY = window.AVATAR_GALLERY || [];
+
+function loadAvatarClaims() {
+  try { return JSON.parse(localStorage.getItem(LS_AVATAR_CLAIMS) || "{}"); }
+  catch { return {}; }
+}
+function saveAvatarClaims(claims) {
+  localStorage.setItem(LS_AVATAR_CLAIMS, JSON.stringify(claims));
+}
+function avatarSlugForStudent(studentId) {
+  return loadAvatarClaims()[studentId] || null;
+}
+function avatarTakenBy(slug) {
+  const claims = loadAvatarClaims();
+  return Object.keys(claims).find(sid => claims[sid] === slug) || null;
+}
+function avatarFileFor(slug) {
+  const a = AVATAR_GALLERY.find(a => a.slug === slug);
+  return a ? `./assets/images/avatars/${a.file}` : null;
+}
+function claimAvatar(studentId, slug) {
+  const claims = loadAvatarClaims();
+  // Free up anything this student had before (switching avatars).
+  for (const sid of Object.keys(claims)) if (sid === studentId) delete claims[sid];
+  // Refuse if another student already has it.
+  const holder = Object.keys(claims).find(sid => claims[sid] === slug);
+  if (holder && holder !== studentId) return false;
+  claims[studentId] = slug;
+  saveAvatarClaims(claims);
+  return true;
+}
+function freeAvatarForStudent(studentId) {
+  const claims = loadAvatarClaims();
+  if (claims[studentId]) {
+    delete claims[studentId];
+    saveAvatarClaims(claims);
+  }
+}
+
 /* ---------- Sounds (Web Audio, no asset files required) ---------- */
 const sfx = {
   ctx: null,
@@ -161,6 +207,7 @@ function rewardPoints(amount) {
   if (Object.keys(state.sad).length) saveSad();
   sfx.happy();
   animatePop(state.selectedId, `+${amount}`);
+  fireReaction("reward", amount, state.selectedId);
   render();
 }
 
@@ -174,6 +221,7 @@ function giveSad() {
   state.sad[state.selectedId] = true;
   saveSad();
   sfx.sad();
+  fireReaction("discipline", null, state.selectedId);
   render();
 }
 
@@ -185,6 +233,7 @@ function clearSad(id) {
 
 function removeStudent(id) {
   if (!confirm(`Clear all history for ${id}? (Roster stays in students.js)`)) return;
+  freeAvatarForStudent(id);
   delete state.sad[id];
   for (const day of Object.keys(state.dayScores)) {
     if (state.dayScores[day]) {
@@ -236,6 +285,21 @@ function animatePop(studentId, label) {
   tag.textContent = label;
   card.appendChild(tag);
   setTimeout(() => tag.remove(), 950);
+}
+
+/* Bridges to reactions.js (HyperFrames-authored / fallback animations +
+   real sound-bite files). Falls back to a no-op if reactions.js hasn't
+   loaded, so the app still works without it. */
+function fireReaction(kind, amount, studentId) {
+  const card = document.querySelector(`.student-card[data-student-id="${studentId}"]`);
+  const anchor = card ? card.querySelector('[data-role="avatar-frame"]') : null;
+  if (!window.Reactions) return;
+  try {
+    if (kind === "reward") window.Reactions.playReward(amount, anchor);
+    else if (kind === "discipline") window.Reactions.playDiscipline(anchor);
+  } catch (err) {
+    console.warn("Reactions module error:", err);
+  }
 }
 
 /* ---------- DOM helpers ---------- */
@@ -295,6 +359,66 @@ function openSettings() {
   document.body.appendChild(back);
 }
 
+function openAvatarPicker(studentId) {
+  const student = (window.DEFAULT_STUDENTS || []).find(s => s.id === studentId);
+  if (!student) return;
+  const currentSlug = avatarSlugForStudent(studentId);
+  const back = el("div", "modal-backdrop");
+  const modal = el("div", "modal modal-wide");
+  modal.appendChild(el("h2", null, `🎭 Choose ${student.name}'s avatar`));
+  modal.appendChild(el("p", "help",
+    "Tap an avatar to claim it. Once picked, it's locked for this student and unavailable to every other student in every class until it's freed."));
+
+  const grid = el("div", "avatar-picker-grid");
+  AVATAR_GALLERY.forEach(a => {
+    const takenBy = avatarTakenBy(a.slug);
+    const isMine = takenBy === studentId;
+    const isTaken = takenBy && !isMine;
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "avatar-picker-item" + (isMine ? " selected" : "") + (isTaken ? " taken" : "");
+    item.disabled = !!isTaken;
+    const takenName = isTaken
+      ? ((window.DEFAULT_STUDENTS || []).find(s => s.id === takenBy)?.name || "another student")
+      : "";
+    item.innerHTML = `
+      <img src="./assets/images/avatars/${a.file}" alt="${a.name}" loading="lazy" />
+      <span class="avatar-picker-name">${a.name}</span>
+      ${isTaken ? `<span class="avatar-picker-taken-badge">Taken${takenName ? " · " + takenName : ""}</span>` : ""}
+      ${isMine ? `<span class="avatar-picker-mine-badge">✓ Current</span>` : ""}
+    `;
+    item.addEventListener("click", () => {
+      if (isTaken) return;
+      const ok = claimAvatar(studentId, a.slug);
+      if (!ok) { alert("That avatar was just taken by someone else — pick another!"); refreshGrid(); return; }
+      closeModal();
+      render();
+    });
+    grid.appendChild(item);
+  });
+  modal.appendChild(grid);
+
+  function refreshGrid() {
+    closeModal();
+    openAvatarPicker(studentId);
+  }
+
+  const row = el("div", "row");
+  if (currentSlug) {
+    row.appendChild(button("Remove avatar", "btn btn-remove", () => {
+      freeAvatarForStudent(studentId);
+      closeModal();
+      render();
+    }));
+  }
+  row.appendChild(button("Close", "btn btn-settings", closeModal));
+  modal.appendChild(row);
+
+  back.appendChild(modal);
+  back.addEventListener("click", (e) => { if (e.target === back) closeModal(); });
+  document.body.appendChild(back);
+}
+
 function closeModal() {
   document.querySelectorAll(".modal-backdrop").forEach(n => n.remove());
 }
@@ -342,14 +466,18 @@ function renderRoster() {
     const totalPts = totalScoreFor(s.id);
     const isSad = !!state.sad[s.id];
     const isSelected = state.selectedId === s.id;
+    const slug = avatarSlugForStudent(s.id);
+    const avatarSrc = slug ? avatarFileFor(slug) : null;
     const card = document.createElement("button");
     card.type = "button";
     card.className = "student-card" + (isSelected ? " selected" : "");
     card.setAttribute("aria-pressed", isSelected ? "true" : "false");
     card.dataset.studentId = s.id;
     card.innerHTML = `
-      <div class="avatar-frame">
-        <img class="avatar" src="${s.avatar}" alt="${s.name} avatar" loading="lazy" />
+      <div class="avatar-frame${avatarSrc ? "" : " avatar-frame-empty"}" data-role="avatar-frame" title="${avatarSrc ? "Change avatar" : "Choose an avatar"}">
+        ${avatarSrc
+          ? `<img class="avatar" src="${avatarSrc}" alt="${s.name} avatar" loading="lazy" />`
+          : `<span class="avatar avatar-placeholder">🎭<br><small>Pick avatar</small></span>`}
         ${isSad ? `<span class="sad-pin" aria-label="marked sad">☹</span>` : ``}
       </div>
       <span class="name">${s.name}</span>
@@ -359,7 +487,15 @@ function renderRoster() {
         <span class="total-points" aria-label="total points">· ${totalPts} all-time</span>
       </span>
     `;
-    card.addEventListener("click", () => selectStudent(s.id));
+    card.addEventListener("click", (e) => {
+      const frame = e.target.closest('[data-role="avatar-frame"]');
+      if (frame) { e.stopPropagation(); e.preventDefault(); openAvatarPicker(s.id); return; }
+      selectStudent(s.id);
+    });
+    if (withAvatarFallback && avatarSrc) {
+      const img = card.querySelector("img.avatar");
+      if (img) withAvatarFallback(img, s);
+    }
     grid.appendChild(card);
   });
 }

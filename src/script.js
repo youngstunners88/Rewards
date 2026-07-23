@@ -9,18 +9,58 @@
 const LS_ACTIVE             = "rewards.activeClass.v1";
 const LS_LEADERBOARD_SCOPE  = "rewards.leaderboardScope.v1";
 const LS_PREFIX             = "rewards."; // class key = rewards.<classId>.<field>
+const LS_ROSTER_CUSTOM      = "rewards.roster.custom.v1";   // students added from the app
+const LS_ROSTER_REMOVED     = "rewards.roster.removed.v1";  // ids removed from the app
 
+// startTime = the class's scheduled start, "HH:MM" 24h clock. Used to
+// score on-time / early / late check-ins (see checkIn()).
 const CLASSES = [
-  { id: "top-stars-2",      label: "Top Stars 2", ages: "8-9",   tier: "young" },
-  { id: "top-stars-2-1on1", label: "TS2 1-on-1",  ages: "8-9",   tier: "young" },
-  { id: "top-stars-3",      label: "Top Stars 3", ages: "10-12", tier: "mid"   },
-  { id: "top-stars-4",      label: "Top Stars 4", ages: "12-14", tier: "older" },
+  { id: "top-stars-2", label: "Top Stars 2", ages: "8-9",   tier: "young", startTime: "14:30" },
+  { id: "top-stars-3", label: "Top Stars 3", ages: "10-12", tier: "mid",   startTime: "15:00" },
+  { id: "top-stars-4", label: "Top Stars 4", ages: "12-14", tier: "older", startTime: "16:00" },
 ];
 
 function activeClassId() { return state.activeClassId || CLASSES[0].id; }
 function classKey(field) { return LS_PREFIX + activeClassId() + "." + field; }
 
 const DEFAULT_STUDENTS = window.DEFAULT_STUDENTS || [];
+
+/* ---------- Roster overrides (add/remove students from the app) ----------
+   The shipped roster in students.js is just the *default* starting point.
+   Teachers can add or remove students directly from the app; those changes
+   are layered on top in localStorage so students.js never needs editing
+   for day-to-day changes. */
+function loadCustomRoster() {
+  try { return JSON.parse(localStorage.getItem(LS_ROSTER_CUSTOM) || "[]"); }
+  catch { return []; }
+}
+function saveCustomRoster(list) {
+  localStorage.setItem(LS_ROSTER_CUSTOM, JSON.stringify(list));
+}
+function loadRemovedIds() {
+  try { return new Set(JSON.parse(localStorage.getItem(LS_ROSTER_REMOVED) || "[]")); }
+  catch { return new Set(); }
+}
+function saveRemovedIds(set) {
+  localStorage.setItem(LS_ROSTER_REMOVED, JSON.stringify(Array.from(set)));
+}
+function allStudentsRaw() {
+  return DEFAULT_STUDENTS.concat(loadCustomRoster());
+}
+function tierForClassId(classId) {
+  const c = CLASSES.find(c => c.id === classId);
+  return c ? c.tier : "young";
+}
+function slugify(name) {
+  return (name || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+function uniqueStudentId(base) {
+  const taken = new Set(allStudentsRaw().map(s => s.id));
+  let id = base || "student";
+  let n = 2;
+  while (taken.has(id)) { id = `${base}-${n}`; n++; }
+  return id;
+}
 
 /* ---------- Avatar gallery + cross-class claim registry ----------
    AVATAR_GALLERY (avatars.js) holds 30 selectable characters.
@@ -126,17 +166,27 @@ const state = {
   dayScores:         {},
   sad:               {},
   leaderboardScope:  "today",  // "today" | "all"
+  // entries[dateKey][studentId] = { time: "H:MM AM/PM", diffMin, points, tier }
+  entries:           {},
+  // tests[studentId] = [ { id, date: "YYYY-M-D", score, points, ts } ... ]
+  tests:             {},
 };
 
-const SEED_STUDENTS = () => (window.DEFAULT_STUDENTS || []).slice();
+const SEED_STUDENTS = () => {
+  const removed = loadRemovedIds();
+  return allStudentsRaw().filter(s => !removed.has(s.id));
+};
 const studentsForActiveClass = () =>
-  SEED_STUDENTS().filter(s => CLASSES.some(c => c.id === activeClassId() && isStudentInClass(s, c)));
+  SEED_STUDENTS().filter(s => isStudentInClass(s, CLASSES.find(c => c.id === activeClassId())));
 
 function isStudentInClass(student, classDef) {
-  if (classDef.id === "top-stars-2")      return student.tier === "young";
-  if (classDef.id === "top-stars-2-1on1") return student.id === "jenny-1on1";
-  if (classDef.id === "top-stars-3")      return student.tier === "mid";
-  if (classDef.id === "top-stars-4")      return student.tier === "older";
+  if (!classDef) return false;
+  // Students added from the app carry an explicit classId — trust that
+  // directly instead of inferring from tier.
+  if (student.classId) return student.classId === classDef.id;
+  if (classDef.id === "top-stars-2") return student.tier === "young";
+  if (classDef.id === "top-stars-3") return student.tier === "mid";
+  if (classDef.id === "top-stars-4") return student.tier === "older";
   return false;
 }
 
@@ -164,6 +214,140 @@ function sumPts(bag) {
   let t = 0;
   for (const v of Object.values(bag || {})) t += (v || 0);
   return t;
+}
+
+/* ---------- Entry check-in ----------
+   Tap "Check in" when a student physically arrives. Points are scored
+   against the active class's scheduled start time:
+     - 5+ minutes EARLY (before start time)      -> 5 points
+     - within 5 minutes either side of start time -> 2 points ("on time")
+     - more than 5 minutes AFTER start time        -> 1 point (late)
+   One check-in per student per day; tapping again just shows their entry. */
+function activeClassStartTime() {
+  const c = CLASSES.find(c => c.id === activeClassId());
+  return c ? c.startTime : null;
+}
+function startDateTimeFor(startTimeStr, ref) {
+  const [h, m] = startTimeStr.split(":").map(Number);
+  const d = new Date(ref);
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+function entryTierForDiff(diffMin) {
+  if (diffMin <= -5) return { tier: "early",   points: 5 };
+  if (diffMin <= 5)  return { tier: "on-time", points: 2 };
+  return { tier: "late", points: 1 };
+}
+function formatClock(d) {
+  // Fixed en-US formatting regardless of system/browser locale.
+  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+function entryForToday(studentId) {
+  const bag = state.entries[state.currentDateKey];
+  return bag ? bag[studentId] : null;
+}
+function checkIn(studentId) {
+  if (!studentsForActiveClass().some(s => s.id === studentId)) return;
+  if (state.currentDateKey !== todayKey()) { state.currentDateKey = todayKey(); state.sad = {}; }
+  if (!state.entries[state.currentDateKey]) state.entries[state.currentDateKey] = {};
+  const bag = state.entries[state.currentDateKey];
+  if (bag[studentId]) {
+    const e = bag[studentId];
+    alert(`Already checked in today at ${e.time} (+${e.points} ${e.tier === "early" ? "early" : e.tier === "late" ? "late" : "on time"}).`);
+    return;
+  }
+  const startTimeStr = activeClassStartTime();
+  const now = new Date();
+  let points = 2, tier = "on-time";
+  if (startTimeStr) {
+    const start = startDateTimeFor(startTimeStr, now);
+    const diffMin = (now - start) / 60000;
+    ({ tier, points } = entryTierForDiff(diffMin));
+  }
+  bag[studentId] = { time: formatClock(now), points, tier };
+  saveEntries();
+
+  const today = ensureToday();
+  today[studentId] = (today[studentId] || 0) + points;
+  saveDayScores();
+  saveCurrentDate();
+
+  sfx.happy();
+  animatePop(studentId, `+${points}`);
+  fireReaction("reward", points, studentId);
+  render();
+}
+function allEntriesFor(studentId) {
+  const out = [];
+  for (const day of Object.keys(state.entries)) {
+    const e = state.entries[day]?.[studentId];
+    if (e) out.push({ day, ...e });
+  }
+  out.sort((a, b) => b.day.localeCompare(a.day));
+  return out;
+}
+
+/* ---------- Test scores ----------
+   Record a test result (with date) for a student. Points are banded by
+   score: 100%->20, 90%->15, 80%->10, 70%->7, 60%->5, 50%->3, below 50%->0.
+   Points are added to that date's day-score bag, so the leaderboard and
+   class-history calendar both reflect them automatically. */
+function pointsForScore(score) {
+  const n = Number(score);
+  if (!isFinite(n)) return 0;
+  if (n >= 100) return 20;
+  if (n >= 90)  return 15;
+  if (n >= 80)  return 10;
+  if (n >= 70)  return 7;
+  if (n >= 60)  return 5;
+  if (n >= 50)  return 3;
+  return 0;
+}
+function addTestScore(studentId, dateKey, score) {
+  if (!studentsForActiveClass().some(s => s.id === studentId)) return;
+  const points = pointsForScore(score);
+  if (!state.tests[studentId]) state.tests[studentId] = [];
+  state.tests[studentId].push({
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    date: dateKey,
+    score: Number(score),
+    points,
+    ts: Date.now(),
+  });
+  saveTests();
+
+  if (!state.dayScores[dateKey]) state.dayScores[dateKey] = {};
+  state.dayScores[dateKey][studentId] = (state.dayScores[dateKey][studentId] || 0) + points;
+  saveDayScores();
+
+  sfx.happy();
+  render();
+}
+function removeTestScore(studentId, testId) {
+  if (!state.tests[studentId]) return;
+  const entry = state.tests[studentId].find(t => t.id === testId);
+  state.tests[studentId] = state.tests[studentId].filter(t => t.id !== testId);
+  saveTests();
+  // Undo the points it contributed to that date's bag, if still present.
+  if (entry && state.dayScores[entry.date] && typeof state.dayScores[entry.date][studentId] === "number") {
+    state.dayScores[entry.date][studentId] -= entry.points;
+    if (state.dayScores[entry.date][studentId] <= 0 && Object.keys(state.dayScores[entry.date]).length) {
+      // keep at 0 rather than deleting, so other students' scores that day are untouched
+      state.dayScores[entry.date][studentId] = Math.max(0, state.dayScores[entry.date][studentId]);
+    }
+    saveDayScores();
+  }
+  render();
+}
+function testsForActiveClass() {
+  const ids = new Set(studentsForActiveClass().map(s => s.id));
+  const out = [];
+  for (const sid of Object.keys(state.tests)) {
+    if (!ids.has(sid)) continue;
+    for (const t of state.tests[sid]) out.push({ studentId: sid, ...t });
+  }
+  out.sort((a, b) => b.ts - a.ts);
+  return out;
 }
 
 /* ---------- Avatar fallback ---------- */
@@ -232,7 +416,14 @@ function clearSad(id) {
 }
 
 function removeStudent(id) {
-  if (!confirm(`Clear all history for ${id}? (Roster stays in students.js)`)) return;
+  const student = allStudentsRaw().find(s => s.id === id);
+  const label = student ? student.name : id;
+  if (!confirm(`Remove ${label} from the roster and clear all of their history? This can't be undone.`)) return;
+
+  const removed = loadRemovedIds();
+  removed.add(id);
+  saveRemovedIds(removed);
+
   freeAvatarForStudent(id);
   delete state.sad[id];
   for (const day of Object.keys(state.dayScores)) {
@@ -241,17 +432,33 @@ function removeStudent(id) {
       if (Object.keys(state.dayScores[day]).length === 0) delete state.dayScores[day];
     }
   }
+  for (const day of Object.keys(state.entries)) {
+    if (state.entries[day]) delete state.entries[day][id];
+  }
+  delete state.tests[id];
   if (state.selectedId === id) state.selectedId = null;
   saveDayScores();
   saveSad();
+  saveEntries();
+  saveTests();
+  closeModal();
   render();
 }
 
-function addStudent(name) {
+function addStudent(name, classId) {
   const clean = (name || "").trim();
   if (!clean) return;
-  const id = clean.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 24);
-  alert(`To add "${clean}" permanently, add { id: "${id}", name: "${clean}", tier: "young" } to students.js and reload.`);
+  const targetClassId = classId || activeClassId();
+  const base = slugify(clean) || "student";
+  const id = uniqueStudentId(base);
+  const tier = tierForClassId(targetClassId);
+  const custom = loadCustomRoster();
+  custom.push({ id, name: clean, tier, classId: targetClassId });
+  saveCustomRoster(custom);
+  // In case this id was previously removed (e.g. re-adding someone), un-remove it.
+  const removed = loadRemovedIds();
+  if (removed.has(id)) { removed.delete(id); saveRemovedIds(removed); }
+  render();
 }
 
 function resetAll() {
@@ -318,15 +525,17 @@ function button(label, cls, onClick) {
 
 /* ---------- Modals ---------- */
 function openAddStudent() {
+  const cls = CLASSES.find(c => c.id === activeClassId());
   const back = el("div", "modal-backdrop");
   const modal = el("div", "modal");
   modal.appendChild(el("h2", null, "Add a student"));
+  modal.appendChild(el("p", "help", `They'll be added to ${cls ? cls.label : "the current class"}. Switch class tabs first if you meant a different one.`));
   modal.appendChild(el("label", null, "Name"));
   const input = document.createElement("input");
   input.type = "text"; input.placeholder = "e.g. Sarah"; input.maxLength = 30;
   modal.appendChild(input);
   modal.appendChild(el("p", "help",
-    "An avatar image will be generated if no image is found in assets/images/."));
+    "Pick their avatar afterwards by tapping their picture on the roster."));
   const row = el("div", "row");
   row.appendChild(button("Cancel", "btn btn-settings", closeModal));
   row.appendChild(button("Add", "btn btn-primary", () => { addStudent(input.value); closeModal(); }));
@@ -350,7 +559,7 @@ function openSettings() {
   row.appendChild(button("Reset to default class", "btn btn-remove", () => { closeModal(); resetToDefault(); }));
   modal.appendChild(row);
   modal.appendChild(el("p", "help",
-    "Sad-face warnings clear automatically at the start of each new day."));
+    "Sad-face warnings clear automatically at the start of each new day. Tap the 👁 on a student's card to view or remove them."));
   const close = el("div", "row");
   close.appendChild(button("Close", "btn btn-settings", closeModal));
   modal.appendChild(close);
@@ -423,6 +632,132 @@ function closeModal() {
   document.querySelectorAll(".modal-backdrop").forEach(n => n.remove());
 }
 
+/* ---------- Student detail (isolate one student's records) ---------- */
+function openStudentDetail(studentId) {
+  const student = allStudentsRaw().find(s => s.id === studentId);
+  if (!student) return;
+  const cls = CLASSES.find(c => c.id === activeClassId());
+  const slug = avatarSlugForStudent(studentId);
+  const avatarSrc = slug ? avatarFileFor(slug) : null;
+  const todayBag = state.dayScores[state.currentDateKey] || {};
+
+  const back = el("div", "modal-backdrop");
+  const modal = el("div", "modal modal-wide");
+
+  const head = el("div", "detail-head");
+  head.innerHTML = `
+    <div class="detail-avatar">
+      ${avatarSrc ? `<img src="${avatarSrc}" alt="${student.name}" />` : `<span class="avatar-placeholder">🎭</span>`}
+    </div>
+    <div>
+      <h2 style="margin:0">${student.name}</h2>
+      <p class="help" style="margin:4px 0 0">${cls ? cls.label : ""}</p>
+    </div>
+  `;
+  modal.appendChild(head);
+
+  const stats = el("div", "detail-stats");
+  stats.innerHTML = `
+    <div class="detail-stat"><span class="detail-stat-num">${todayBag[studentId] || 0}</span><span class="detail-stat-label">today</span></div>
+    <div class="detail-stat"><span class="detail-stat-num">${totalScoreFor(studentId)}</span><span class="detail-stat-label">all-time</span></div>
+    <div class="detail-stat"><span class="detail-stat-num">${allEntriesFor(studentId).length}</span><span class="detail-stat-label">check-ins</span></div>
+    <div class="detail-stat"><span class="detail-stat-num">${(state.tests[studentId] || []).length}</span><span class="detail-stat-label">tests</span></div>
+  `;
+  modal.appendChild(stats);
+
+  modal.appendChild(el("h3", "detail-section-title", "🕘 Check-in history"));
+  const entries = allEntriesFor(studentId);
+  if (entries.length) {
+    const ul = el("ul", "detail-list");
+    entries.slice(0, 15).forEach(e => {
+      const li = el("li");
+      const tierLabel = e.tier === "early" ? "Early" : e.tier === "late" ? "Late" : "On time";
+      li.innerHTML = `<span>${formatDayKeyShort(e.day)} · ${e.time}</span><span class="detail-list-tag">${tierLabel} · +${e.points}</span>`;
+      ul.appendChild(li);
+    });
+    modal.appendChild(ul);
+  } else {
+    modal.appendChild(el("p", "muted", "No check-ins recorded yet."));
+  }
+
+  modal.appendChild(el("h3", "detail-section-title", "🧪 Test scores"));
+  const tests = (state.tests[studentId] || []).slice().sort((a, b) => b.ts - a.ts);
+  if (tests.length) {
+    const ul = el("ul", "detail-list");
+    tests.slice(0, 15).forEach(t => {
+      const li = el("li");
+      li.innerHTML = `<span>${formatDayKeyShort(t.date)} · ${t.score}%</span><span class="detail-list-tag">+${t.points}</span>`;
+      ul.appendChild(li);
+    });
+    modal.appendChild(ul);
+  } else {
+    modal.appendChild(el("p", "muted", "No test scores recorded yet."));
+  }
+
+  const row = el("div", "row");
+  row.appendChild(button("🗑 Remove student", "btn btn-remove", () => removeStudent(studentId)));
+  row.appendChild(button("Close", "btn btn-settings", closeModal));
+  modal.appendChild(row);
+
+  back.appendChild(modal);
+  back.addEventListener("click", (e) => { if (e.target === back) closeModal(); });
+  document.body.appendChild(back);
+}
+function formatDayKeyShort(key) {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+/* ---------- Test score entry modal ---------- */
+function openAddTestScore() {
+  const students = studentsForActiveClass();
+  if (!students.length) { alert("No students in this class yet."); return; }
+  const back = el("div", "modal-backdrop");
+  const modal = el("div", "modal");
+  modal.appendChild(el("h2", null, "🧪 Add test score"));
+
+  modal.appendChild(el("label", null, "Student"));
+  const select = document.createElement("select");
+  students.forEach(s => {
+    const opt = document.createElement("option");
+    opt.value = s.id; opt.textContent = s.name;
+    select.appendChild(opt);
+  });
+  modal.appendChild(select);
+
+  modal.appendChild(el("label", null, "Score (%)"));
+  const scoreInput = document.createElement("input");
+  scoreInput.type = "number"; scoreInput.min = "0"; scoreInput.max = "100"; scoreInput.placeholder = "e.g. 90";
+  modal.appendChild(scoreInput);
+
+  modal.appendChild(el("label", null, "Date"));
+  const dateInput = document.createElement("input");
+  dateInput.type = "date";
+  const now = new Date();
+  dateInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  modal.appendChild(dateInput);
+
+  modal.appendChild(el("p", "help",
+    "Points: 100%→20 · 90%→15 · 80%→10 · 70%→7 · 60%→5 · 50%→3 (below 50% → 0). Added straight to that day's points."));
+
+  const row = el("div", "row");
+  row.appendChild(button("Cancel", "btn btn-settings", closeModal));
+  row.appendChild(button("Save", "btn btn-primary", () => {
+    const score = scoreInput.value;
+    if (score === "" || isNaN(Number(score))) { alert("Enter a score between 0 and 100."); return; }
+    const [y, m, d] = dateInput.value.split("-").map(Number);
+    const dateKey = `${y}-${m}-${d}`;
+    addTestScore(select.value, dateKey, Math.max(0, Math.min(100, Number(score))));
+    closeModal();
+  }));
+  modal.appendChild(row);
+
+  back.appendChild(modal);
+  back.addEventListener("click", (e) => { if (e.target === back) closeModal(); });
+  document.body.appendChild(back);
+  scoreInput.focus();
+}
+
 /* ---------- Class selector ---------- */
 function renderClassPicker() {
   const wrap = document.getElementById("class-picker");
@@ -468,12 +803,14 @@ function renderRoster() {
     const isSelected = state.selectedId === s.id;
     const slug = avatarSlugForStudent(s.id);
     const avatarSrc = slug ? avatarFileFor(slug) : null;
+    const checkedIn = entryForToday(s.id);
     const card = document.createElement("button");
     card.type = "button";
     card.className = "student-card" + (isSelected ? " selected" : "");
     card.setAttribute("aria-pressed", isSelected ? "true" : "false");
     card.dataset.studentId = s.id;
     card.innerHTML = `
+      <span class="card-view-btn" data-role="view-btn" title="View ${s.name}'s records">👁</span>
       <div class="avatar-frame${avatarSrc ? "" : " avatar-frame-empty"}" data-role="avatar-frame" title="${avatarSrc ? "Change avatar" : "Choose an avatar"}">
         ${avatarSrc
           ? `<img class="avatar" src="${avatarSrc}" alt="${s.name} avatar" loading="lazy" />`
@@ -486,10 +823,19 @@ function renderRoster() {
         <span class="day-points-label">today</span>
         <span class="total-points" aria-label="total points">· ${totalPts} all-time</span>
       </span>
+      <span class="checkin-row" data-role="checkin-row">
+        ${checkedIn
+          ? `<span class="checkin-done">✅ ${checkedIn.time} · +${checkedIn.points}</span>`
+          : `<span class="btn-checkin" data-role="checkin-btn">🕘 Check in</span>`}
+      </span>
     `;
     card.addEventListener("click", (e) => {
       const frame = e.target.closest('[data-role="avatar-frame"]');
       if (frame) { e.stopPropagation(); e.preventDefault(); openAvatarPicker(s.id); return; }
+      const viewBtn = e.target.closest('[data-role="view-btn"]');
+      if (viewBtn) { e.stopPropagation(); e.preventDefault(); openStudentDetail(s.id); return; }
+      const checkinBtn = e.target.closest('[data-role="checkin-btn"]');
+      if (checkinBtn) { e.stopPropagation(); e.preventDefault(); checkIn(s.id); return; }
       selectStudent(s.id);
     });
     if (withAvatarFallback && avatarSrc) {
@@ -543,6 +889,35 @@ function toggleLeaderboardScope() {
   if (btn) btn.textContent = state.leaderboardScope === "all" ? "Show today" : "Show all-time";
 }
 
+/* ---------- Test scores tab ---------- */
+function renderTestScores() {
+  const list = document.getElementById("test-scores-list");
+  if (!list) return;
+  list.innerHTML = "";
+  const rows = testsForActiveClass();
+  if (!rows.length) {
+    list.innerHTML = `<li class="empty">No test scores recorded yet.</li>`;
+    return;
+  }
+  const students = studentsForActiveClass();
+  rows.slice(0, 12).forEach(t => {
+    const student = students.find(s => s.id === t.studentId);
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <span class="who">${student ? student.name : t.studentId}</span>
+      <span class="test-score-detail">${t.score}% · ${formatDayKeyShort(t.date)}</span>
+      <span class="score">+${t.points}</span>
+      <button type="button" class="test-score-remove" title="Remove this entry" aria-label="Remove this test score">✕</button>
+    `;
+    li.querySelector(".test-score-remove").addEventListener("click", () => {
+      if (confirm(`Remove this ${t.score}% test score for ${student ? student.name : t.studentId}?`)) {
+        removeTestScore(t.studentId, t.id);
+      }
+    });
+    list.appendChild(li);
+  });
+}
+
 /* ---------- Calendar / Day history modal ---------- */
 function openCalendar() {
   const back = el("div", "modal-backdrop");
@@ -578,7 +953,7 @@ function openCalendar() {
 
   let cursor = calendarCursorInit();
   function refresh() {
-    monthLabel.textContent = cursor.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    monthLabel.textContent = cursor.toLocaleDateString("en-US", { month: "long", year: "numeric" });
     renderCalendarGrid(grid, cursor, dayDetail, refresh);
   }
   prev.addEventListener("click", () => { cursor = new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1); refresh(); });
@@ -661,7 +1036,7 @@ function renderDayDetail(container, key, dayBag, students) {
   container.innerHTML = "";
   const [y, m, d] = key.split("-").map(Number);
   const date = new Date(y, m - 1, d);
-  const dateStr = date.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const dateStr = date.toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   container.appendChild(el("h3", null, dateStr));
 
   if (!students.length) {
@@ -692,7 +1067,7 @@ function renderTodayLabel() {
   const el = document.getElementById("today-label");
   if (!el) return;
   const d = new Date();
-  el.textContent = d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+  el.textContent = d.toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long" });
 }
 
 function wireTopBar() {
@@ -702,6 +1077,8 @@ function wireTopBar() {
   if (cal) cal.addEventListener("click", openCalendar);
   const lb = document.getElementById("leaderboard-toggle");
   if (lb) lb.addEventListener("click", toggleLeaderboardScope);
+  const addTest = document.getElementById("add-test-score-btn");
+  if (addTest) addTest.addEventListener("click", openAddTestScore);
   document.querySelectorAll("[data-action]").forEach(b => {
     const a = b.getAttribute("data-action");
     b.addEventListener("click", () => {
@@ -717,6 +1094,8 @@ function wireTopBar() {
 function saveDayScores()    { localStorage.setItem(classKey("days"),         JSON.stringify(state.dayScores)); }
 function saveCurrentDate()  { localStorage.setItem(classKey("currentDate"),  state.currentDateKey); }
 function saveSad()          { localStorage.setItem(classKey("sad"),          JSON.stringify(state.sad)); }
+function saveEntries()      { localStorage.setItem(classKey("entries"),      JSON.stringify(state.entries)); }
+function saveTests()        { localStorage.setItem(classKey("tests"),       JSON.stringify(state.tests)); }
 
 /* ---------- Load ---------- */
 function loadActiveClass() {
@@ -732,6 +1111,8 @@ function loadClassData() {
 
   try { state.dayScores = JSON.parse(localStorage.getItem(classKey("days")) || "{}"); } catch { state.dayScores = {}; }
   try { state.sad       = JSON.parse(localStorage.getItem(classKey("sad"))   || "{}"); } catch { state.sad       = {}; }
+  try { state.entries   = JSON.parse(localStorage.getItem(classKey("entries")) || "{}"); } catch { state.entries = {}; }
+  try { state.tests     = JSON.parse(localStorage.getItem(classKey("tests"))   || "{}"); } catch { state.tests   = {}; }
 
   if (!state.dayScores[state.currentDateKey]) state.dayScores[state.currentDateKey] = {};
 
@@ -742,6 +1123,11 @@ function loadClassData() {
     for (const k of Object.keys(bag)) if (!validIds.has(k)) delete bag[k];
   }
   for (const k of Object.keys(state.sad)) if (!validIds.has(k)) delete state.sad[k];
+  for (const day of Object.keys(state.entries)) {
+    const bag = state.entries[day];
+    for (const k of Object.keys(bag)) if (!validIds.has(k)) delete bag[k];
+  }
+  for (const k of Object.keys(state.tests)) if (!validIds.has(k)) delete state.tests[k];
 }
 
 function loadState() {
@@ -762,6 +1148,7 @@ function render() {
   renderClassPicker();
   renderRoster();
   renderLeaderboard();
+  renderTestScores();
   updateButtonStates();
   renderTodayLabel();
   // Keep the leaderboard toggle's label in sync with the saved scope.

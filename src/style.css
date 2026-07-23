@@ -285,3 +285,77 @@ body {
   25%  { opacity: 1; }
   100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--angle)) translateY(-46px) scale(1.2); }
 }
+
+/* ---------- Check-in (entry time tracking) ---------- */
+.checkin-row { display: block; margin-top: 6px; }
+.btn-checkin {
+  display: inline-block; font-size: 0.75rem; font-weight: 800;
+  background: var(--accent-2); color: #06343d; border-radius: 10px;
+  padding: 4px 10px; cursor: pointer;
+}
+.btn-checkin:hover { filter: brightness(1.05); }
+.checkin-done {
+  display: inline-block; font-size: 0.72rem; font-weight: 700;
+  color: #2b8a3e; background: #d3f9d8; border-radius: 10px; padding: 4px 10px;
+}
+
+/* Small "view student" eye icon, top-left of each card */
+.card-view-btn {
+  position: absolute; top: 8px; left: 8px; z-index: 3;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: #fff; box-shadow: var(--shadow);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.85rem; cursor: pointer;
+}
+.card-view-btn:hover { filter: brightness(1.05); }
+
+/* ---------- Test scores tab ---------- */
+.test-scores-wrap {
+  background: var(--card); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 12px 16px; margin-bottom: 16px;
+}
+.test-scores-list { list-style: none; margin: 0; padding: 0; }
+.test-scores-list li {
+  display: flex; align-items: center; gap: 10px; padding: 6px 0;
+  border-bottom: 1px solid #f1f3f5; font-weight: 600;
+}
+.test-scores-list li:last-child { border-bottom: none; }
+.test-scores-list .who { min-width: 90px; }
+.test-score-detail { color: #777; font-weight: 500; flex: 1; }
+.test-scores-list .score { color: var(--good); font-weight: 800; }
+.test-score-remove {
+  border: 0; background: transparent; color: #c92a2a; cursor: pointer;
+  font-weight: 800; font-size: 0.9rem; padding: 2px 6px;
+}
+
+/* Modal form fields beyond plain text inputs */
+.modal select, .modal input[type=number], .modal input[type=date] {
+  width: 100%; padding: 10px 12px; border: 2px solid #e9ecef;
+  border-radius: 10px; font-family: inherit; font-size: 1rem; background: #fff;
+}
+.modal select:focus, .modal input[type=number]:focus, .modal input[type=date]:focus {
+  outline: 3px solid #1d4ed8; outline-offset: 1px;
+}
+
+/* ---------- Student detail (isolate) modal ---------- */
+.detail-head { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+.detail-avatar {
+  width: 72px; height: 72px; border-radius: 50%; overflow: hidden;
+  background: #f1f3f5; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  border: 3px solid var(--accent-3);
+}
+.detail-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.detail-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.detail-stat {
+  background: #f8f9fa; border-radius: 12px; padding: 8px 14px; text-align: center; min-width: 72px;
+}
+.detail-stat-num { display: block; font-size: 1.3rem; font-weight: 900; color: var(--ink); }
+.detail-stat-label { display: block; font-size: 0.68rem; font-weight: 700; color: #888; text-transform: uppercase; }
+.detail-section-title { margin: 14px 0 6px; font-size: 0.95rem; }
+.detail-list { list-style: none; margin: 0; padding: 0; }
+.detail-list li {
+  display: flex; justify-content: space-between; gap: 10px; padding: 5px 0;
+  border-bottom: 1px solid #f1f3f5; font-size: 0.85rem; font-weight: 600;
+}
+.detail-list li:last-child { border-bottom: none; }
+.detail-list-tag { color: #777; font-weight: 700; }

@@ -15,9 +15,10 @@ const LS_ROSTER_REMOVED     = "rewards.roster.removed.v1";  // ids removed from 
 // startTime = the class's scheduled start, "HH:MM" 24h clock. Used to
 // score on-time / early / late check-ins (see checkIn()).
 const CLASSES = [
-  { id: "top-stars-2", label: "Top Stars 2", ages: "8-9",   tier: "young", startTime: "14:30" },
-  { id: "top-stars-3", label: "Top Stars 3", ages: "10-12", tier: "mid",   startTime: "15:00" },
-  { id: "top-stars-4", label: "Top Stars 4", ages: "12-14", tier: "older", startTime: "16:00" },
+  { id: "top-stars-2",      label: "Top Stars 2", ages: "8-9",   tier: "young", startTime: "14:30" },
+  { id: "top-stars-2-1on1", label: "TS2 1-on-1",  ages: "8-9",   tier: "young", startTime: "14:00" },
+  { id: "top-stars-3",      label: "Top Stars 3", ages: "10-12", tier: "mid",   startTime: "15:00" },
+  { id: "top-stars-4",      label: "Top Stars 4", ages: "12-14", tier: "older", startTime: "16:00" },
 ];
 
 function activeClassId() { return state.activeClassId || CLASSES[0].id; }

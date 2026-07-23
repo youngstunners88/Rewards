@@ -1,9 +1,10 @@
 // students.js — default class rosters for the Rewards app.
 //
-// Three group classes, sharing one app:
-//   - top-stars-2  : ages  8-9   (14:30-15:00 Mon-Fri)
-//   - top-stars-3  : ages 10-12  (15:00-16:00 Tue/Thu/Fri)
-//   - top-stars-4  : ages 12-14  (16:00-17:00 Tue/Thu/Fri)
+// Three group classes plus a Thursday 1-on-1 slot, sharing one app:
+//   - top-stars-2      : ages  8-9   (14:30-15:00 Mon-Fri)
+//   - top-stars-2-1on1 : Thursday 14:00-14:30 1-on-1 with Jenny
+//   - top-stars-3      : ages 10-12  (15:00-16:00 Tue/Thu/Fri)
+//   - top-stars-4      : ages 12-14  (16:00-17:00 Tue/Thu/Fri)
 //
 // Each entry: { id, name, tier }
 //   id    — stable id used as the avatar filename stem (e.g. assets/images/leah.png)
@@ -27,6 +28,11 @@ window.DEFAULT_STUDENTS = [
   { id: "isabella", name: "Isabella", tier: "young" },
   { id: "lily",     name: "Lily",     tier: "young" },
   { id: "elio",     name: "Elio",     tier: "young" },
+
+  // Top Stars 2 — Thursday 1-on-1 (14:00-14:30) — Jenny.
+  // classId pins her to the TS2 1-on-1 tab explicitly so she doesn't mix
+  // into the Mon-Fri group roster above.
+  { id: "jenny-1on1", name: "Jenny", tier: "young", classId: "top-stars-2-1on1" },
 
   // Top Stars 3 — ages 10-12 — slightly more polished, expressive
   { id: "matthew",  name: "Matthew",  tier: "mid" },

@@ -696,6 +696,13 @@ function openStudentDetail(studentId) {
   }
 
   const row = el("div", "row");
+  if (state.sad[studentId]) {
+    row.appendChild(button("☺ Clear sad face", "btn btn-settings", () => {
+      clearSad(studentId);
+      closeModal();
+      render();
+    }));
+  }
   row.appendChild(button("🗑 Remove student", "btn btn-remove", () => removeStudent(studentId)));
   row.appendChild(button("Close", "btn btn-settings", closeModal));
   modal.appendChild(row);

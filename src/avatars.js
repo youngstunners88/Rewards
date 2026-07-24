@@ -50,9 +50,15 @@ window.AVATAR_GALLERY = [
   { slug: "slam-dunk-kid",        name: "Slam Dunk Kid",       file: "slam-dunk-kid.png",         tags: ["basketball", "sports"] },
   { slug: "treasure-pirate-kid",  name: "Treasure Pirate",     file: "treasure-pirate-kid.png",   tags: ["pirate", "adventure"] },
   { slug: "sparkle-wizard-kid",   name: "Sparkle Wizard",      file: "sparkle-wizard-kid.png",    tags: ["magic", "fantasy"] },
+
+  { slug: "forest-guardian-kid",  name: "Forest Guardian",     file: "forest-guardian-kid.jpg",   tags: ["nature", "fantasy"] },
+  { slug: "nova-velvet-kid",      name: "Nova Velvet",         file: "nova-velvet-kid.jpg",       tags: ["hero", "cool"] },
+  { slug: "star-fairy-kid",       name: "Star Fairy",          file: "star-fairy-kid.jpg",        tags: ["fairy", "magic"] },
+  { slug: "tech-fairy-kid",       name: "Tech Fairy",          file: "tech-fairy-kid.jpg",        tags: ["fairy", "tech"] },
+  { slug: "dream-journal-kid",    name: "Dream Journal Kid",   file: "dream-journal-kid.jpg",     tags: ["dreamy", "cozy"] },
 ];
 
-// Sanity check: must be exactly 30 unique slugs.
-if (window.AVATAR_GALLERY.length !== 30) {
-  console.warn(`AVATAR_GALLERY expected 30 avatars, found ${window.AVATAR_GALLERY.length}`);
+// Sanity check: must be exactly 35 unique slugs.
+if (window.AVATAR_GALLERY.length !== 35) {
+  console.warn(`AVATAR_GALLERY expected 35 avatars, found ${window.AVATAR_GALLERY.length}`);
 }

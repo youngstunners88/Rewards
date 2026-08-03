@@ -15,10 +15,15 @@ const LS_ROSTER_REMOVED     = "rewards.roster.removed.v1";  // ids removed from 
 // startTime = the class's scheduled start, "HH:MM" 24h clock. Used to
 // score on-time / early / late check-ins (see checkIn()).
 const CLASSES = [
-  { id: "top-stars-2",      label: "Top Stars 2", ages: "8-9",   tier: "young", startTime: "14:30" },
-  { id: "top-stars-2-1on1", label: "TS2 1-on-1",  ages: "8-9",   tier: "young", startTime: "14:00" },
-  { id: "top-stars-3",      label: "Top Stars 3", ages: "10-12", tier: "mid",   startTime: "15:00" },
-  { id: "top-stars-4",      label: "Top Stars 4", ages: "12-14", tier: "older", startTime: "16:00" },
+  { id: "top-stars-2",      label: "Top Stars 2",         tier: "young",  startTime: "14:30" },
+  { id: "top-stars-2-1on1", label: "TS2 1-on-1",          tier: "young",  startTime: "14:00" },
+  { id: "top-stars-3",      label: "Top Stars 3",         tier: "mid",    startTime: "15:00" },
+  { id: "top-stars-4",      label: "Top Stars 4",         tier: "older",  startTime: "16:00" },
+  // Added from Chris's updated schedule (Aug 2026) — new classes, existing
+  // classes/students above are untouched.
+  { id: "top-stars-4b",      label: "Top Stars 4B",        tier: "older4b", startTime: "15:00" },
+  { id: "top-stars-4b-1on1", label: "Top Stars 4B 1-on-1", tier: "older4b", startTime: "18:00" },
+  { id: "wave-2",            label: "Wave 2",              tier: "wave2",   startTime: "17:00" },
 ];
 
 function activeClassId() { return state.activeClassId || CLASSES[0].id; }
@@ -775,7 +780,7 @@ function renderClassPicker() {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "class-tab" + (c.id === activeClassId() ? " active" : "");
-    btn.innerHTML = `<span class="class-tab-label">${c.label}</span><span class="class-tab-ages">Ages ${c.ages}</span>`;
+    btn.innerHTML = `<span class="class-tab-label">${c.label}</span>`;
     btn.addEventListener("click", () => switchClass(c.id));
     wrap.appendChild(btn);
   });
@@ -1093,6 +1098,7 @@ function wireTopBar() {
       if (a === "+1") rewardPoints(1);
       else if (a === "+2") rewardPoints(2);
       else if (a === "+3") rewardPoints(3);
+      else if (a === "+5") rewardPoints(5);
       else if (a === "sad") giveSad();
     });
   });

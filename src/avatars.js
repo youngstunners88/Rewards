@@ -95,9 +95,28 @@ window.AVATAR_GALLERY = [
   { slug: "surfer-kid",            name: "Surfer Dude",         file: "surfer-kid.png",            tags: ["surf", "beach"] },
   { slug: "magician-kid",          name: "Junior Magician",     file: "magician-kid.png",          tags: ["magic", "showtime"] },
   { slug: "dragon-tamer-kid",      name: "Dragon Tamer",        file: "dragon-tamer-kid.png",      tags: ["dragon", "fantasy"] },
+
+  // ---- Added Aug 2026 — mature/cool avatars for 14-16yo teen classes ----
+  // (15 of 25 requested — image generation credits ran out mid-batch;
+  // the remaining 10 will be added once credits reset.)
+  { slug: "streetwear-icon-teen",  name: "Streetwear Icon",     file: "streetwear-icon-teen.png",  tags: ["teen", "streetwear"] },
+  { slug: "esports-champion-teen", name: "Esports Champion",    file: "esports-champion-teen.png", tags: ["teen", "gaming"] },
+  { slug: "skateboard-pro-teen",   name: "Skateboard Pro",      file: "skateboard-pro-teen.png",   tags: ["teen", "skate"] },
+  { slug: "dj-spin-teen",          name: "DJ Spin",             file: "dj-spin-teen.png",          tags: ["teen", "music"] },
+  { slug: "photographer-teen",     name: "Photographer",        file: "photographer-teen.png",     tags: ["teen", "creative"] },
+  { slug: "hip-hop-dancer-teen",   name: "Hip-Hop Dancer",      file: "hip-hop-dancer-teen.png",   tags: ["teen", "dance"] },
+  { slug: "sneakerhead-teen",      name: "Sneakerhead",         file: "sneakerhead-teen.png",      tags: ["teen", "fashion"] },
+  { slug: "motocross-teen",        name: "Motocross Rider",     file: "motocross-teen.png",        tags: ["teen", "action"] },
+  { slug: "varsity-athlete-teen",  name: "Varsity Athlete",     file: "varsity-athlete-teen.png",  tags: ["teen", "sports"] },
+  { slug: "electric-guitar-teen",  name: "Rockstar",            file: "electric-guitar-teen.png",  tags: ["teen", "music"] },
+  { slug: "urban-artist-teen",     name: "Urban Artist",        file: "urban-artist-teen.png",     tags: ["teen", "creative"] },
+  { slug: "boxing-teen",           name: "Boxer",               file: "boxing-teen.png",           tags: ["teen", "sports"] },
+  { slug: "longboard-teen",        name: "Longboarder",         file: "longboard-teen.png",        tags: ["teen", "cool"] },
+  { slug: "fashion-icon-teen",     name: "Fashion Icon",        file: "fashion-icon-teen.png",     tags: ["teen", "fashion"] },
+  { slug: "rock-climber-teen",     name: "Rock Climber",        file: "rock-climber-teen.png",     tags: ["teen", "action"] },
 ];
 
-// Sanity check: must be exactly 71 unique slugs.
-if (window.AVATAR_GALLERY.length !== 71) {
-  console.warn(`AVATAR_GALLERY expected 71 avatars, found ${window.AVATAR_GALLERY.length}`);
+// Sanity check: must be exactly 86 unique slugs.
+if (window.AVATAR_GALLERY.length !== 86) {
+  console.warn(`AVATAR_GALLERY expected 86 avatars, found ${window.AVATAR_GALLERY.length}`);
 }

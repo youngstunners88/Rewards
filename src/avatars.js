@@ -56,9 +56,48 @@ window.AVATAR_GALLERY = [
   { slug: "star-fairy-kid",       name: "Star Fairy",          file: "star-fairy-kid.jpg",        tags: ["fairy", "magic"] },
   { slug: "tech-fairy-kid",       name: "Tech Fairy",          file: "tech-fairy-kid.jpg",        tags: ["fairy", "tech"] },
   { slug: "dream-journal-kid",    name: "Dream Journal Kid",   file: "dream-journal-kid.jpg",     tags: ["dreamy", "cozy"] },
+
+  // ---- Added Aug 2026 — 36 more avatars for growing classes (18 girl-presenting, 18 boy-presenting) ----
+  { slug: "ballerina-star-kid",    name: "Ballerina Star",      file: "ballerina-star-kid.png",    tags: ["dance", "sparkle"] },
+  { slug: "mermaid-glow-kid",      name: "Mermaid Glow",        file: "mermaid-glow-kid.png",      tags: ["ocean", "magic"] },
+  { slug: "skater-girl-kid",       name: "Skater Girl",         file: "skater-girl-kid.png",       tags: ["skate", "cool"] },
+  { slug: "archer-kid",            name: "Archer Ranger",       file: "archer-kid.png",            tags: ["forest", "action"] },
+  { slug: "chef-kid",              name: "Chef Kid",            file: "chef-kid.png",              tags: ["cooking", "cheerful"] },
+  { slug: "violin-virtuoso-kid",   name: "Violin Virtuoso",     file: "violin-virtuoso-kid.png",   tags: ["music", "elegant"] },
+  { slug: "snow-queen-kid",        name: "Snow Queen",          file: "snow-queen-kid.png",        tags: ["winter", "fantasy"] },
+  { slug: "karate-kid-girl",       name: "Karate Star",         file: "karate-kid-girl.png",       tags: ["martial-arts", "action"] },
+  { slug: "gardener-kid",          name: "Garden Fairy",        file: "gardener-kid.png",          tags: ["nature", "gentle"] },
+  { slug: "astronaut-kid-girl",    name: "Astro Explorer",      file: "astronaut-kid-girl.png",    tags: ["space", "explorer"] },
+  { slug: "detective-kid",         name: "Junior Detective",    file: "detective-kid.png",         tags: ["mystery", "clever"] },
+  { slug: "painter-kid-girl",      name: "Little Picasso",      file: "painter-kid-girl.png",      tags: ["art", "creative"] },
+  { slug: "swim-champion-kid",     name: "Swim Champion",       file: "swim-champion-kid.png",     tags: ["swim", "sports"] },
+  { slug: "unicorn-rider-kid",     name: "Unicorn Rider",       file: "unicorn-rider-kid.png",     tags: ["fantasy", "magic"] },
+  { slug: "chess-master-kid",      name: "Chess Master",        file: "chess-master-kid.png",      tags: ["strategy", "clever"] },
+  { slug: "gymnast-kid",           name: "Gymnast Star",        file: "gymnast-kid.png",           tags: ["gymnastics", "sports"] },
+  { slug: "baker-kid-girl",        name: "Cupcake Baker",       file: "baker-kid-girl.png",        tags: ["baking", "sweet"] },
+  { slug: "superhero-kid-girl",    name: "Comet Girl",          file: "superhero-kid-girl.png",    tags: ["hero", "action"] },
+
+  { slug: "skateboard-kid",        name: "Skate Legend",        file: "skateboard-kid.png",        tags: ["skate", "cool"] },
+  { slug: "dino-hunter-kid",       name: "Dino Hunter",         file: "dino-hunter-kid.png",        tags: ["dino", "adventure"] },
+  { slug: "drummer-kid",           name: "Drummer Kid",         file: "drummer-kid.png",           tags: ["music", "energetic"] },
+  { slug: "soccer-star-kid",       name: "Soccer Star",         file: "soccer-star-kid.png",       tags: ["soccer", "sports"] },
+  { slug: "pirate-captain-kid",    name: "Pirate Captain",      file: "pirate-captain-kid.png",    tags: ["pirate", "adventure"] },
+  { slug: "wizard-apprentice-kid", name: "Wizard Apprentice",   file: "wizard-apprentice-kid.png", tags: ["magic", "fantasy"] },
+  { slug: "knight-squire-kid",     name: "Knight Squire",       file: "knight-squire-kid.png",     tags: ["knight", "hero"] },
+  { slug: "scientist-kid",         name: "Mad Scientist",       file: "scientist-kid.png",         tags: ["science", "silly"] },
+  { slug: "basketball-ace-kid",    name: "Basketball Ace",      file: "basketball-ace-kid.png",    tags: ["basketball", "sports"] },
+  { slug: "ninja-shadow-kid",      name: "Shadow Ninja",        file: "ninja-shadow-kid.png",      tags: ["ninja", "action"] },
+  { slug: "mountain-climber-kid",  name: "Mountain Climber",    file: "mountain-climber-kid.png",  tags: ["climbing", "adventure"] },
+  { slug: "race-car-kid",          name: "Race Car Driver",     file: "race-car-kid.png",          tags: ["racing", "cool"] },
+  { slug: "martial-arts-kid",      name: "Kung Fu Kid",         file: "martial-arts-kid.png",      tags: ["martial-arts", "action"] },
+  { slug: "inventor-kid",          name: "Boy Inventor",        file: "inventor-kid.png",          tags: ["tech", "clever"] },
+  { slug: "cowboy-kid",            name: "Cowboy Kid",          file: "cowboy-kid.png",            tags: ["western", "cool"] },
+  { slug: "surfer-kid",            name: "Surfer Dude",         file: "surfer-kid.png",            tags: ["surf", "beach"] },
+  { slug: "magician-kid",          name: "Junior Magician",     file: "magician-kid.png",          tags: ["magic", "showtime"] },
+  { slug: "dragon-tamer-kid",      name: "Dragon Tamer",        file: "dragon-tamer-kid.png",      tags: ["dragon", "fantasy"] },
 ];
 
-// Sanity check: must be exactly 35 unique slugs.
-if (window.AVATAR_GALLERY.length !== 35) {
-  console.warn(`AVATAR_GALLERY expected 35 avatars, found ${window.AVATAR_GALLERY.length}`);
+// Sanity check: must be exactly 71 unique slugs.
+if (window.AVATAR_GALLERY.length !== 71) {
+  console.warn(`AVATAR_GALLERY expected 71 avatars, found ${window.AVATAR_GALLERY.length}`);
 }

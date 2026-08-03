@@ -54,45 +54,50 @@ window.DEFAULT_STUDENTS = [
   { id: "jenny-l",  name: "Jenny L",  tier: "older" },
 
   // ---- Added Aug 2026 from Chris's updated schedule ----
-  // Top Stars 4B (Mon/Wed/Fri 3:00pm group + Mon/Tue/Thu 4:00pm group,
-  // combined into one class roster since both meet under the same class name).
-  { id: "sunny",   name: "Sunny",   tier: "older4b", classId: "top-stars-4b" },
-  { id: "jayden",  name: "Jayden",  tier: "older4b", classId: "top-stars-4b" },
-  { id: "jay",     name: "Jay",     tier: "older4b", classId: "top-stars-4b" },
-  { id: "noah",    name: "Noah",    tier: "older4b", classId: "top-stars-4b" },
-  { id: "alice",   name: "Alice",   tier: "older4b", classId: "top-stars-4b" },
-  { id: "rio",     name: "Rio",     tier: "older4b", classId: "top-stars-4b" },
-  { id: "henry",   name: "Henry",   tier: "older4b", classId: "top-stars-4b" },
-  { id: "mario",   name: "Mario",   tier: "older4b", classId: "top-stars-4b" },
-  { id: "cooper",  name: "Cooper",  tier: "older4b", classId: "top-stars-4b" },
-  // Teo is in the Top Stars 4B group AND has his own Mon/Tue/Thu 6:00pm
+  // Lina — Mon-Fri 1:00-2:00pm 1-on-1 session (her own class, not a group).
+  { id: "lina",    name: "Lina",    tier: "lina1on1", classId: "lina-1on1" },
+
+  // Top Stars 4B A — Mon/Wed/Fri 3:00pm group (separate class from 4B B).
+  { id: "sunny",   name: "Sunny",   tier: "older4b", classId: "top-stars-4b-a" },
+  { id: "jayden",  name: "Jayden",  tier: "older4b", classId: "top-stars-4b-a" },
+  { id: "jay",     name: "Jay",     tier: "older4b", classId: "top-stars-4b-a" },
+  { id: "noah",    name: "Noah",    tier: "older4b", classId: "top-stars-4b-a" },
+  { id: "alice",   name: "Alice",   tier: "older4b", classId: "top-stars-4b-a" },
+  { id: "rio",     name: "Rio",     tier: "older4b", classId: "top-stars-4b-a" },
+  { id: "henry",   name: "Henry",   tier: "older4b", classId: "top-stars-4b-a" },
+  { id: "mario",   name: "Mario",   tier: "older4b", classId: "top-stars-4b-a" },
+
+  // Top Stars 4B B — Mon/Tue/Thu 4:00pm group (separate class from 4B A).
+  { id: "cooper",  name: "Cooper",  tier: "older4b", classId: "top-stars-4b-b" },
+  // Teo is in the Top Stars 4B B group AND has his own Mon/Tue/Thu 6:00pm
   // 1-on-1 slot — two separate records (like Jenny's 1-on-1 pattern above)
   // so his group check-ins and 1-on-1 check-ins are tracked separately.
-  { id: "teo",           name: "Teo", tier: "older4b", classId: "top-stars-4b" },
+  { id: "teo",           name: "Teo", tier: "older4b", classId: "top-stars-4b-b" },
   { id: "teo-4b-1on1",   name: "Teo", tier: "older4b", classId: "top-stars-4b-1on1" },
-  { id: "zoe",     name: "Zoe",     tier: "older4b", classId: "top-stars-4b" },
-  { id: "zion",    name: "Zion",    tier: "older4b", classId: "top-stars-4b" },
-  { id: "peter",   name: "Peter",   tier: "older4b", classId: "top-stars-4b" },
-  { id: "leanna",  name: "Leanna",  tier: "older4b", classId: "top-stars-4b" },
+  { id: "zoe",     name: "Zoe",     tier: "older4b", classId: "top-stars-4b-b" },
+  { id: "zion",    name: "Zion",    tier: "older4b", classId: "top-stars-4b-b" },
+  { id: "peter",   name: "Peter",   tier: "older4b", classId: "top-stars-4b-b" },
+  { id: "leanna",  name: "Leanna",  tier: "older4b", classId: "top-stars-4b-b" },
 
-  // Wave 2 (Mon/Wed/Fri 5:00pm group + Tue/Thu 5:00pm group, combined
-  // into one class roster since both meet under the same class name).
+  // Wave 2 A — Mon/Wed/Fri 5:00pm group (separate class from Wave 2 B).
   // Note: "Lily" is named "Lily W" here to tell her apart from the
   // existing "Lily" in Top Stars 2 — different student, same first name.
-  { id: "ian",     name: "Ian",     tier: "wave2", classId: "wave-2" },
-  { id: "riley",   name: "Riley",   tier: "wave2", classId: "wave-2" },
-  { id: "bella",   name: "Bella",   tier: "wave2", classId: "wave-2" },
-  { id: "tom",     name: "Tom",     tier: "wave2", classId: "wave-2" },
-  { id: "cindy",   name: "Cindy",   tier: "wave2", classId: "wave-2" },
-  { id: "ethan",   name: "Ethan",   tier: "wave2", classId: "wave-2" },
-  { id: "alyssa",  name: "Alyssa",  tier: "wave2", classId: "wave-2" },
-  { id: "lily-w",  name: "Lily W",  tier: "wave2", classId: "wave-2" },
-  { id: "max",     name: "Max",     tier: "wave2", classId: "wave-2" },
-  { id: "ellen",   name: "Ellen",   tier: "wave2", classId: "wave-2" },
-  { id: "ryan",    name: "Ryan",    tier: "wave2", classId: "wave-2" },
-  { id: "jane",    name: "Jane",    tier: "wave2", classId: "wave-2" },
-  { id: "laura",   name: "Laura",   tier: "wave2", classId: "wave-2" },
-  { id: "jessica", name: "Jessica", tier: "wave2", classId: "wave-2" },
-  { id: "angela",  name: "Angela",  tier: "wave2", classId: "wave-2" },
-  { id: "aiden",   name: "Aiden",   tier: "wave2", classId: "wave-2" },
+  { id: "ian",     name: "Ian",     tier: "wave2", classId: "wave-2-a" },
+  { id: "riley",   name: "Riley",   tier: "wave2", classId: "wave-2-a" },
+  { id: "bella",   name: "Bella",   tier: "wave2", classId: "wave-2-a" },
+  { id: "tom",     name: "Tom",     tier: "wave2", classId: "wave-2-a" },
+  { id: "cindy",   name: "Cindy",   tier: "wave2", classId: "wave-2-a" },
+  { id: "ethan",   name: "Ethan",   tier: "wave2", classId: "wave-2-a" },
+  { id: "alyssa",  name: "Alyssa",  tier: "wave2", classId: "wave-2-a" },
+  { id: "lily-w",  name: "Lily W",  tier: "wave2", classId: "wave-2-a" },
+
+  // Wave 2 B — Tue/Thu 5:00pm group (separate class from Wave 2 A).
+  { id: "max",     name: "Max",     tier: "wave2", classId: "wave-2-b" },
+  { id: "ellen",   name: "Ellen",   tier: "wave2", classId: "wave-2-b" },
+  { id: "ryan",    name: "Ryan",    tier: "wave2", classId: "wave-2-b" },
+  { id: "jane",    name: "Jane",    tier: "wave2", classId: "wave-2-b" },
+  { id: "laura",   name: "Laura",   tier: "wave2", classId: "wave-2-b" },
+  { id: "jessica", name: "Jessica", tier: "wave2", classId: "wave-2-b" },
+  { id: "angela",  name: "Angela",  tier: "wave2", classId: "wave-2-b" },
+  { id: "aiden",   name: "Aiden",   tier: "wave2", classId: "wave-2-b" },
 ];

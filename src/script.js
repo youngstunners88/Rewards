@@ -21,9 +21,12 @@ const CLASSES = [
   { id: "top-stars-4",      label: "Top Stars 4",         tier: "older",  startTime: "16:00" },
   // Added from Chris's updated schedule (Aug 2026) — new classes, existing
   // classes/students above are untouched.
-  { id: "top-stars-4b",      label: "Top Stars 4B",        tier: "older4b", startTime: "15:00" },
+  { id: "lina-1on1",         label: "Lina 1-on-1",         tier: "lina1on1", startTime: "13:00" },
+  { id: "top-stars-4b-a",    label: "Top Stars 4B A",      tier: "older4b", startTime: "15:00" },
+  { id: "top-stars-4b-b",    label: "Top Stars 4B B",      tier: "older4b", startTime: "16:00" },
   { id: "top-stars-4b-1on1", label: "Top Stars 4B 1-on-1", tier: "older4b", startTime: "18:00" },
-  { id: "wave-2",            label: "Wave 2",              tier: "wave2",   startTime: "17:00" },
+  { id: "wave-2-a",          label: "Wave 2 A",            tier: "wave2",   startTime: "17:00" },
+  { id: "wave-2-b",          label: "Wave 2 B",            tier: "wave2",   startTime: "17:00" },
 ];
 
 function activeClassId() { return state.activeClassId || CLASSES[0].id; }
@@ -564,6 +567,20 @@ function openSettings() {
   row.appendChild(button("Reset all points", "btn btn-remove", () => { closeModal(); resetAll(); }));
   row.appendChild(button("Reset to default class", "btn btn-remove", () => { closeModal(); resetToDefault(); }));
   modal.appendChild(row);
+
+  const backupRow = el("div", "row");
+  backupRow.style.flexWrap = "wrap";
+  backupRow.style.justifyContent = "flex-start";
+  backupRow.style.marginTop = "10px";
+  backupRow.appendChild(button("⬇ Backup all data", "btn btn-settings", downloadBackup));
+  const importBtn = button("⬆ Restore from backup", "btn btn-settings", () => {
+    document.getElementById("backup-file-input").click();
+  });
+  backupRow.appendChild(importBtn);
+  modal.appendChild(backupRow);
+  modal.appendChild(el("p", "help",
+    "Backup saves every class's points, check-ins, test scores, and avatar picks to a file on this device. Browsers (especially Safari on iPhone/iPad) can sometimes clear site data after long inactivity — download a backup regularly and keep it somewhere safe, like email or Notes, so you can always restore."));
+
   modal.appendChild(el("p", "help",
     "Sad-face warnings clear automatically at the start of each new day. Tap the 👁 on a student's card to view or remove them."));
   const close = el("div", "row");
@@ -572,6 +589,45 @@ function openSettings() {
   back.appendChild(modal);
   back.addEventListener("click", (e) => { if (e.target === back) closeModal(); });
   document.body.appendChild(back);
+}
+
+function downloadBackup() {
+  const data = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith(LS_PREFIX)) data[key] = localStorage.getItem(key);
+  }
+  const payload = { app: "rewards-backup", version: 1, savedAt: new Date().toISOString(), data };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `rewards-backup-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function restoreBackupFromFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const payload = JSON.parse(reader.result);
+      const data = payload && payload.data ? payload.data : payload;
+      if (!data || typeof data !== "object") throw new Error("Invalid backup file");
+      const keys = Object.keys(data).filter(k => k.startsWith(LS_PREFIX));
+      if (!keys.length) throw new Error("No Rewards data found in this file");
+      if (!confirm(`Restore ${keys.length} saved item(s) from this backup? This will overwrite current data on this device.`)) return;
+      keys.forEach(k => localStorage.setItem(k, data[k]));
+      alert("Backup restored! The app will now reload.");
+      location.reload();
+    } catch (err) {
+      alert("Couldn't read that backup file: " + err.message);
+    }
+  };
+  reader.readAsText(file);
 }
 
 function openAvatarPicker(studentId) {
@@ -1086,6 +1142,12 @@ function renderTodayLabel() {
 function wireTopBar() {
   const set = document.getElementById("settings-btn");
   if (set) set.addEventListener("click", openSettings);
+  const backupInput = document.getElementById("backup-file-input");
+  if (backupInput) backupInput.addEventListener("change", (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) restoreBackupFromFile(file);
+    e.target.value = "";
+  });
   const cal = document.getElementById("calendar-btn");
   if (cal) cal.addEventListener("click", openCalendar);
   const lb = document.getElementById("leaderboard-toggle");

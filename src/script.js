@@ -781,6 +781,23 @@ function formatDayKeyShort(key) {
 const LESSON_SUMMARY_ENDPOINT = "https://lyra-70fe0d09.base44.app/functions/generateLessonSummary";
 const LESSON_LOG_MAX_IMAGES = 5;
 
+// Chris's real weekly timetable (from the printed schedule photo), used to
+// build the "which session is this" dropdown so nobody has to type times.
+// Each class id -> weekday -> array of {start,end} 24h "HH:MM" sessions.
+// Weekdays with no entry simply mean that class doesn't run that day —
+// the modal falls back to a plain custom-time picker (still all English,
+// no native OS date/time control) in that case.
+const WEEKLY_SCHEDULE = {
+  "lina-1on1":         { mon: [["13:00","14:00"]], tue: [["13:00","14:00"]], wed: [["13:00","14:00"]], thu: [["13:00","14:00"]], fri: [["13:00","14:00"]] },
+  "top-stars-4b-a":     { mon: [["15:00","15:30"]], wed: [["15:00","15:30"]], fri: [["15:30","16:00"]] },
+  "top-stars-4b-b":     { mon: [["16:00","16:45"]], tue: [["16:00","16:45"]], thu: [["16:00","16:45"]] },
+  "top-stars-4b-1on1":  { mon: [["18:00","18:30"]] },
+  "wave-2-a":           { mon: [["17:00","17:45"]], wed: [["17:00","17:45"]], fri: [["17:00","18:00"]] },
+  "wave-2-b":           { tue: [["17:00","18:00"]], thu: [["17:00","18:00"]], fri: [["18:00","18:30"]] },
+};
+const WEEKDAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+const WEEKDAY_LABELS = { sun: "Sunday", mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday", sat: "Saturday" };
+
 function loadLessonLogs() {
   try { return JSON.parse(localStorage.getItem(classKey("lessonLogs")) || "[]"); }
   catch { return []; }
@@ -789,8 +806,7 @@ function saveLessonLogs(logs) {
   localStorage.setItem(classKey("lessonLogs"), JSON.stringify(logs));
 }
 
-function dateInputToday() {
-  const d = new Date();
+function isoDateOf(d) {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${d.getFullYear()}-${mm}-${dd}`;
@@ -799,45 +815,133 @@ function formatDateLong(isoDate) {
   const [y, m, d] = isoDate.split("-").map(Number);
   return new Date(y, m - 1, d).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" });
 }
-function addHourToTime(hhmm) {
+function formatDayNav(d) {
+  return `${WEEKDAY_LABELS[WEEKDAY_KEYS[d.getDay()]]}, ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+}
+function formatTime12(hhmm) {
   const [h, m] = hhmm.split(":").map(Number);
-  const total = (h * 60 + m + 60) % (24 * 60);
-  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+  const period = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${period}`;
+}
+// Generic 15-min-interval fallback times (12:00 PM - 9:00 PM) for classes
+// with no scheduled slot on the selected day, or for manual override.
+function fallbackTimeOptions() {
+  const out = [];
+  for (let mins = 12 * 60; mins <= 21 * 60; mins += 15) {
+    const hh = String(Math.floor(mins / 60)).padStart(2, "0");
+    const mm = String(mins % 60).padStart(2, "0");
+    const hhmm = `${hh}:${mm}`;
+    out.push({ value: hhmm, label: formatTime12(hhmm) });
+  }
+  return out;
+}
+function scheduledSessionsFor(classId, weekdayKey) {
+  const sched = WEEKLY_SCHEDULE[classId];
+  return (sched && sched[weekdayKey]) || [];
 }
 
 function openLessonLog() {
   const cls = CLASSES.find(c => c.id === activeClassId());
+  const classId = activeClassId();
   const className = cls ? cls.label : "Class";
-  const defaultStart = cls ? cls.startTime : "15:00";
 
   const pastedImages = []; // array of dataURLs
+  const logDate = { value: new Date() };       // the day being logged
+  const session = { start: null, end: null };  // "HH:MM" 24h, chosen below
 
   const back = el("div", "modal-backdrop");
   const modal = el("div", "modal modal-wide");
   modal.appendChild(el("h2", null, "📝 Lesson Log — " + className));
   modal.appendChild(el("p", "help", "Paste up to 5 screenshots of what you taught (Ctrl+V / ⌘V after clicking the box below), then generate the summary."));
 
-  // Date / time row
-  const dtRow = el("div", "row lesson-log-dt-row");
-  const dateWrap = el("div", null);
-  dateWrap.appendChild(el("label", null, "Date"));
-  const dateInput = document.createElement("input");
-  dateInput.type = "date"; dateInput.value = dateInputToday();
-  dateWrap.appendChild(dateInput);
-  const startWrap = el("div", null);
-  startWrap.appendChild(el("label", null, "Start"));
-  const startInput = document.createElement("input");
-  startInput.type = "time"; startInput.value = defaultStart;
-  startWrap.appendChild(startInput);
-  const endWrap = el("div", null);
-  endWrap.appendChild(el("label", null, "End"));
-  const endInput = document.createElement("input");
-  endInput.type = "time"; endInput.value = addHourToTime(defaultStart);
-  endWrap.appendChild(endInput);
-  dtRow.appendChild(dateWrap); dtRow.appendChild(startWrap); dtRow.appendChild(endWrap);
-  modal.appendChild(dtRow);
+  // Day navigator (plain text, no native OS date picker)
+  const dayRow = el("div", "row lesson-log-day-row");
+  const dayPrev = button("‹", "btn btn-ghost btn-sm", () => { shiftDay(-1); });
+  const dayLabel = el("span", "lesson-log-day-label", "");
+  const dayNext = button("›", "btn btn-ghost btn-sm", () => { shiftDay(1); });
+  dayRow.appendChild(dayPrev); dayRow.appendChild(dayLabel); dayRow.appendChild(dayNext);
+  modal.appendChild(dayRow);
 
-  // Paste zone
+  // Session picker — options come straight from today's actual timetable
+  const sessionWrap = el("div", null);
+  sessionWrap.appendChild(el("label", null, "Class session"));
+  const sessionSelect = document.createElement("select");
+  sessionWrap.appendChild(sessionSelect);
+  modal.appendChild(sessionWrap);
+
+  // Custom time fallback (shown only if "Custom time" is picked, or the
+  // class has no scheduled slot that day) — still plain <select> dropdowns,
+  // never a native time input.
+  const customWrap = el("div", "row lesson-log-custom-row");
+  customWrap.style.display = "none";
+  const customStartWrap = el("div", null);
+  customStartWrap.appendChild(el("label", null, "Start"));
+  const customStartSelect = document.createElement("select");
+  customStartWrap.appendChild(customStartSelect);
+  const customEndWrap = el("div", null);
+  customEndWrap.appendChild(el("label", null, "End"));
+  const customEndSelect = document.createElement("select");
+  customEndWrap.appendChild(customEndSelect);
+  customWrap.appendChild(customStartWrap); customWrap.appendChild(customEndWrap);
+  modal.appendChild(customWrap);
+
+  fallbackTimeOptions().forEach(t => {
+    const o1 = document.createElement("option"); o1.value = t.value; o1.textContent = t.label;
+    customStartSelect.appendChild(o1);
+    const o2 = document.createElement("option"); o2.value = t.value; o2.textContent = t.label;
+    customEndSelect.appendChild(o2);
+  });
+
+  function applySelectedSession() {
+    if (sessionSelect.value === "custom") {
+      customWrap.style.display = "";
+      session.start = customStartSelect.value;
+      session.end = customEndSelect.value;
+    } else {
+      customWrap.style.display = "none";
+      const [s, e] = sessionSelect.value.split("|");
+      session.start = s; session.end = e;
+    }
+  }
+  sessionSelect.addEventListener("change", applySelectedSession);
+  customStartSelect.addEventListener("change", applySelectedSession);
+  customEndSelect.addEventListener("change", applySelectedSession);
+
+  function refreshSessionOptions() {
+    const weekdayKey = WEEKDAY_KEYS[logDate.value.getDay()];
+    const scheduled = scheduledSessionsFor(classId, weekdayKey);
+    sessionSelect.innerHTML = "";
+    scheduled.forEach(([s, e]) => {
+      const opt = document.createElement("option");
+      opt.value = `${s}|${e}`;
+      opt.textContent = `${formatTime12(s)} – ${formatTime12(e)}`;
+      sessionSelect.appendChild(opt);
+    });
+    const customOpt = document.createElement("option");
+    customOpt.value = "custom";
+    customOpt.textContent = scheduled.length ? "Custom time…" : "No scheduled slot today — pick a custom time";
+    sessionSelect.appendChild(customOpt);
+    if (!scheduled.length) {
+      sessionSelect.value = "custom";
+      const fallbackStart = (cls && cls.startTime) || "15:00";
+      if ([...customStartSelect.options].some(o => o.value === fallbackStart)) customStartSelect.value = fallbackStart;
+    } else {
+      sessionSelect.value = scheduled[0].join("|");
+    }
+    applySelectedSession();
+  }
+
+  function shiftDay(delta) {
+    logDate.value = new Date(logDate.value.getFullYear(), logDate.value.getMonth(), logDate.value.getDate() + delta);
+    dayLabel.textContent = formatDayNav(logDate.value);
+    refreshSessionOptions();
+  }
+
+  dayLabel.textContent = formatDayNav(logDate.value);
+  refreshSessionOptions();
+
+    // Paste zone
   const pasteZone = el("div", "lesson-paste-zone");
   pasteZone.contentEditable = "true";
   pasteZone.setAttribute("data-placeholder", "Click here, then paste screenshots (Ctrl+V / ⌘V) — up to 5");
@@ -917,9 +1021,9 @@ function openLessonLog() {
   const saveBtn = button("💾 Save to Lesson Log", "btn btn-ghost btn-sm", () => {
     const logs = loadLessonLogs();
     logs.unshift({
-      date: dateInput.value,
-      startTime: startInput.value,
-      endTime: endInput.value,
+      date: isoDateOf(logDate.value),
+      startTime: session.start,
+      endTime: session.end,
       summary: outputArea.value,
       createdAt: Date.now(),
     });
@@ -944,9 +1048,9 @@ function openLessonLog() {
         body: JSON.stringify({
           images: pastedImages,
           className,
-          date: formatDateLong(dateInput.value),
-          startTime: startInput.value,
-          endTime: endInput.value,
+          date: formatDateLong(isoDateOf(logDate.value)),
+          startTime: session.start,
+          endTime: session.end,
         }),
       });
       const data = await resp.json();
@@ -1027,11 +1131,18 @@ function openAddTestScore() {
   modal.appendChild(scoreInput);
 
   modal.appendChild(el("label", null, "Date"));
-  const dateInput = document.createElement("input");
-  dateInput.type = "date";
-  const now = new Date();
-  dateInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  modal.appendChild(dateInput);
+  const scoreDate = { value: new Date() };
+  const dayRow = el("div", "row lesson-log-day-row");
+  const dayLabel = el("span", "lesson-log-day-label", "");
+  const dayPrev = button("‹", "btn btn-ghost btn-sm", () => { shiftScoreDay(-1); });
+  const dayNext = button("›", "btn btn-ghost btn-sm", () => { shiftScoreDay(1); });
+  dayRow.appendChild(dayPrev); dayRow.appendChild(dayLabel); dayRow.appendChild(dayNext);
+  modal.appendChild(dayRow);
+  function shiftScoreDay(delta) {
+    scoreDate.value = new Date(scoreDate.value.getFullYear(), scoreDate.value.getMonth(), scoreDate.value.getDate() + delta);
+    dayLabel.textContent = formatDayNav(scoreDate.value);
+  }
+  dayLabel.textContent = formatDayNav(scoreDate.value);
 
   modal.appendChild(el("p", "help",
     "Points: 100%→20 · 90%→15 · 80%→10 · 70%→7 · 60%→5 · 50%→3 (below 50% → 0). Added straight to that day's points."));
@@ -1041,8 +1152,8 @@ function openAddTestScore() {
   row.appendChild(button("Save", "btn btn-primary", () => {
     const score = scoreInput.value;
     if (score === "" || isNaN(Number(score))) { alert("Enter a score between 0 and 100."); return; }
-    const [y, m, d] = dateInput.value.split("-").map(Number);
-    const dateKey = `${y}-${m}-${d}`;
+    const dateKey = isoDateOf(scoreDate.value);
+    addTestScore(select.value, dateKey, Math.max(0, Math.min(100, Number(score))));
     addTestScore(select.value, dateKey, Math.max(0, Math.min(100, Number(score))));
     closeModal();
   }));

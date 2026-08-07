@@ -451,3 +451,9 @@ body {
 .lesson-log-saved-item { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; }
 .lesson-log-saved-head { display: flex; justify-content: space-between; align-items: center; font-weight: 600; margin-bottom: 6px; }
 .lesson-log-saved-text { white-space: pre-wrap; font-family: inherit; margin: 0; font-size: 0.9rem; color: #334155; }
+
+/* Lesson log day navigator + custom time row */
+.lesson-log-day-row { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 4px; }
+.lesson-log-day-label { font-weight: 600; min-width: 160px; text-align: center; }
+.lesson-log-custom-row { display: flex; gap: 12px; margin-top: 8px; }
+.lesson-log-custom-row > div { flex: 1; }

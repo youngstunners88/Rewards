@@ -30,7 +30,7 @@ const CLASSES = [
 ];
 
 function activeClassId() { return state.activeClassId || CLASSES[0].id; }
-function classKey(field) { return LS_PREFIX + activeClassId() + "." + field; }
+function classKey(field, classIdOverride) { return LS_PREFIX + (classIdOverride || activeClassId()) + "." + field; }
 
 const DEFAULT_STUDENTS = window.DEFAULT_STUDENTS || [];
 
@@ -788,7 +788,11 @@ const LESSON_LOG_MAX_IMAGES = 5;
 // the modal falls back to a plain custom-time picker (still all English,
 // no native OS date/time control) in that case.
 const WEEKLY_SCHEDULE = {
-  "lina-1on1":         { mon: [["13:00","14:00"]], tue: [["13:00","14:00"]], wed: [["13:00","14:00"]], thu: [["13:00","14:00"]], fri: [["13:00","14:00"]] },
+  "top-stars-2":        { mon: [["14:30","15:00"]], tue: [["14:30","15:00"]], wed: [["14:30","15:00"]], thu: [["14:30","15:00"]], fri: [["14:30","15:00"]] },
+  "top-stars-2-1on1":   { thu: [["14:00","14:30"]] },
+  "top-stars-3":        { tue: [["15:00","16:00"]], thu: [["15:00","16:00"]], fri: [["15:00","16:00"]] },
+  "top-stars-4":        { tue: [["15:00","15:45"]], thu: [["15:00","15:45"]], fri: [["15:00","15:30"]] },
+  "lina-1on1":          { mon: [["13:00","14:00"]], tue: [["13:00","14:00"]], wed: [["13:00","14:00"]], thu: [["13:00","14:00"]], fri: [["13:00","14:00"]] },
   "top-stars-4b-a":     { mon: [["15:00","15:30"]], wed: [["15:00","15:30"]], fri: [["15:30","16:00"]] },
   "top-stars-4b-b":     { mon: [["16:00","16:45"]], tue: [["16:00","16:45"]], thu: [["16:00","16:45"]] },
   "top-stars-4b-1on1":  { mon: [["18:00","18:30"]] },
@@ -798,12 +802,12 @@ const WEEKLY_SCHEDULE = {
 const WEEKDAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 const WEEKDAY_LABELS = { sun: "Sunday", mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday", sat: "Saturday" };
 
-function loadLessonLogs() {
-  try { return JSON.parse(localStorage.getItem(classKey("lessonLogs")) || "[]"); }
+function loadLessonLogs(classId) {
+  try { return JSON.parse(localStorage.getItem(classKey("lessonLogs", classId)) || "[]"); }
   catch { return []; }
 }
-function saveLessonLogs(logs) {
-  localStorage.setItem(classKey("lessonLogs"), JSON.stringify(logs));
+function saveLessonLogs(classId, logs) {
+  localStorage.setItem(classKey("lessonLogs", classId), JSON.stringify(logs));
 }
 
 function isoDateOf(d) {
@@ -842,18 +846,17 @@ function scheduledSessionsFor(classId, weekdayKey) {
 }
 
 function openLessonLog() {
-  const cls = CLASSES.find(c => c.id === activeClassId());
-  const classId = activeClassId();
-  const className = cls ? cls.label : "Class";
+  const activeCls = CLASSES.find(c => c.id === activeClassId());
 
   const pastedImages = []; // array of dataURLs
   const logDate = { value: new Date() };       // the day being logged
-  const session = { start: null, end: null };  // "HH:MM" 24h, chosen below
+  const session = { start: null, end: null, classId: activeClassId(), className: activeCls ? activeCls.label : "Class" };
 
   const back = el("div", "modal-backdrop");
   const modal = el("div", "modal modal-wide");
-  modal.appendChild(el("h2", null, "📝 Lesson Log — " + className));
-  modal.appendChild(el("p", "help", "Paste up to 5 screenshots of what you taught (Ctrl+V / ⌘V after clicking the box below), then generate the summary."));
+  const titleEl = el("h2", null, "📝 Lesson Log — " + session.className);
+  modal.appendChild(titleEl);
+  modal.appendChild(el("p", "help", "Pick which class session this is, paste up to 5 screenshots of what you taught (Ctrl+V / ⌘V after clicking the box below), then generate the summary."));
 
   // Day navigator (plain text, no native OS date picker)
   const dayRow = el("div", "row lesson-log-day-row");
@@ -863,16 +866,16 @@ function openLessonLog() {
   dayRow.appendChild(dayPrev); dayRow.appendChild(dayLabel); dayRow.appendChild(dayNext);
   modal.appendChild(dayRow);
 
-  // Session picker — options come straight from today's actual timetable
+  // Session picker — EVERY class's scheduled session for the selected day,
+  // in chronological order, so you just pick the one you're logging.
   const sessionWrap = el("div", null);
   sessionWrap.appendChild(el("label", null, "Class session"));
   const sessionSelect = document.createElement("select");
   sessionWrap.appendChild(sessionSelect);
   modal.appendChild(sessionWrap);
 
-  // Custom time fallback (shown only if "Custom time" is picked, or the
-  // class has no scheduled slot that day) — still plain <select> dropdowns,
-  // never a native time input.
+  // Custom time fallback (shown only when "Custom time" is picked) — still
+  // plain <select> dropdowns, never a native time input.
   const customWrap = el("div", "row lesson-log-custom-row");
   customWrap.style.display = "none";
   const customStartWrap = el("div", null);
@@ -898,11 +901,17 @@ function openLessonLog() {
       customWrap.style.display = "";
       session.start = customStartSelect.value;
       session.end = customEndSelect.value;
+      session.classId = activeClassId();
+      session.className = activeCls ? activeCls.label : "Class";
     } else {
       customWrap.style.display = "none";
-      const [s, e] = sessionSelect.value.split("|");
-      session.start = s; session.end = e;
+      const [classId, s, e] = sessionSelect.value.split("|");
+      const c = CLASSES.find(x => x.id === classId);
+      session.classId = classId; session.start = s; session.end = e;
+      session.className = c ? c.label : "Class";
     }
+    titleEl.textContent = "📝 Lesson Log — " + session.className;
+    renderSavedLogs();
   }
   sessionSelect.addEventListener("change", applySelectedSession);
   customStartSelect.addEventListener("change", applySelectedSession);
@@ -910,28 +919,43 @@ function openLessonLog() {
 
   function refreshSessionOptions() {
     const weekdayKey = WEEKDAY_KEYS[logDate.value.getDay()];
-    const scheduled = scheduledSessionsFor(classId, weekdayKey);
+    // Gather every class's session(s) today, across the whole timetable.
+    const todaysSessions = [];
+    CLASSES.forEach(c => {
+      scheduledSessionsFor(c.id, weekdayKey).forEach(([s, e]) => {
+        todaysSessions.push({ classId: c.id, label: c.label, start: s, end: e });
+      });
+    });
+    todaysSessions.sort((a, b) => a.start.localeCompare(b.start));
+
     sessionSelect.innerHTML = "";
-    scheduled.forEach(([s, e]) => {
+    todaysSessions.forEach(t => {
       const opt = document.createElement("option");
-      opt.value = `${s}|${e}`;
-      opt.textContent = `${formatTime12(s)} – ${formatTime12(e)}`;
+      opt.value = `${t.classId}|${t.start}|${t.end}`;
+      opt.textContent = `${formatTime12(t.start)} – ${formatTime12(t.end)} · ${t.label}`;
       sessionSelect.appendChild(opt);
     });
     const customOpt = document.createElement("option");
     customOpt.value = "custom";
-    customOpt.textContent = scheduled.length ? "Custom time…" : "No scheduled slot today — pick a custom time";
+    customOpt.textContent = "Custom time…";
     sessionSelect.appendChild(customOpt);
-    if (!scheduled.length) {
+
+    // Default to today's session for the class tab that was open when the
+    // modal was launched, if it has one; otherwise the earliest session.
+    const activeMatch = todaysSessions.find(t => t.classId === activeClassId());
+    if (activeMatch) {
+      sessionSelect.value = `${activeMatch.classId}|${activeMatch.start}|${activeMatch.end}`;
+    } else if (todaysSessions.length) {
+      const first = todaysSessions[0];
+      sessionSelect.value = `${first.classId}|${first.start}|${first.end}`;
+    } else {
       sessionSelect.value = "custom";
-      const fallbackStart = (cls && cls.startTime) || "15:00";
+      const fallbackStart = (activeCls && activeCls.startTime) || "15:00";
       if ([...customStartSelect.options].some(o => o.value === fallbackStart)) customStartSelect.value = fallbackStart;
       const [fh, fm] = customStartSelect.value.split(":").map(Number);
       const endMins = fh * 60 + fm + 45;
       const fallbackEnd = `${String(Math.floor(endMins / 60) % 24).padStart(2, "0")}:${String(endMins % 60).padStart(2, "0")}`;
       if ([...customEndSelect.options].some(o => o.value === fallbackEnd)) customEndSelect.value = fallbackEnd;
-    } else {
-      sessionSelect.value = scheduled[0].join("|");
     }
     applySelectedSession();
   }
@@ -941,9 +965,6 @@ function openLessonLog() {
     dayLabel.textContent = formatDayNav(logDate.value);
     refreshSessionOptions();
   }
-
-  dayLabel.textContent = formatDayNav(logDate.value);
-  refreshSessionOptions();
 
     // Paste zone
   const pasteZone = el("div", "lesson-paste-zone");
@@ -1023,7 +1044,7 @@ function openLessonLog() {
     setTimeout(() => { copyBtn.textContent = "📋 Copy"; }, 1500);
   });
   const saveBtn = button("💾 Save to Lesson Log", "btn btn-ghost btn-sm", () => {
-    const logs = loadLessonLogs();
+    const logs = loadLessonLogs(session.classId);
     logs.unshift({
       date: isoDateOf(logDate.value),
       startTime: session.start,
@@ -1031,7 +1052,7 @@ function openLessonLog() {
       summary: outputArea.value,
       createdAt: Date.now(),
     });
-    saveLessonLogs(logs);
+    saveLessonLogs(session.classId, logs);
     renderSavedLogs();
     statusMsg.textContent = "Saved ✓";
   });
@@ -1051,7 +1072,7 @@ function openLessonLog() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           images: pastedImages,
-          className,
+          className: session.className,
           date: formatDateLong(isoDateOf(logDate.value)),
           startTime: session.start,
           endTime: session.end,
@@ -1075,9 +1096,9 @@ function openLessonLog() {
 
   function renderSavedLogs() {
     savedList.innerHTML = "";
-    const logs = loadLessonLogs();
+    const logs = loadLessonLogs(session.classId);
     if (!logs.length) {
-      savedList.appendChild(el("p", "help", "No lesson logs saved yet for this class."));
+      savedList.appendChild(el("p", "help", `No lesson logs saved yet for ${session.className}.`));
       return;
     }
     logs.forEach((log, idx) => {
@@ -1086,9 +1107,9 @@ function openLessonLog() {
       head.appendChild(el("span", null, `${formatDateLong(log.date)} · ${log.startTime}-${log.endTime}`));
       const del = button("✕", "lesson-thumb-remove", () => {
         if (!confirm("Delete this saved lesson log?")) return;
-        const fresh = loadLessonLogs();
+        const fresh = loadLessonLogs(session.classId);
         fresh.splice(idx, 1);
-        saveLessonLogs(fresh);
+        saveLessonLogs(session.classId, fresh);
         renderSavedLogs();
       });
       head.appendChild(del);
@@ -1100,6 +1121,8 @@ function openLessonLog() {
       savedList.appendChild(item);
     });
   }
+  dayLabel.textContent = formatDayNav(logDate.value);
+  refreshSessionOptions();
   renderSavedLogs();
   renderThumbs();
 

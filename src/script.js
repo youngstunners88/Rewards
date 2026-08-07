@@ -788,16 +788,16 @@ const LESSON_LOG_MAX_IMAGES = 5;
 // the modal falls back to a plain custom-time picker (still all English,
 // no native OS date/time control) in that case.
 const WEEKLY_SCHEDULE = {
-  "top-stars-2":        { mon: [["14:30","15:00"]], tue: [["14:30","15:00"]], wed: [["14:30","15:00"]], thu: [["14:30","15:00"]], fri: [["14:30","15:00"]] },
+  "top-stars-2":        { mon: [["14:30","15:00"]], tue: [["14:30","15:00"]], wed: [["14:30","15:00"]], thu: [["14:30","15:00"]] },
   "top-stars-2-1on1":   { thu: [["14:00","14:30"]] },
   "top-stars-3":        { tue: [["15:00","16:00"]], thu: [["15:00","16:00"]], fri: [["15:00","16:00"]] },
   "top-stars-4":        { tue: [["15:00","15:45"]], thu: [["15:00","15:45"]], fri: [["15:00","15:30"]] },
   "lina-1on1":          { mon: [["13:00","14:00"]], tue: [["13:00","14:00"]], wed: [["13:00","14:00"]], thu: [["13:00","14:00"]], fri: [["13:00","14:00"]] },
-  "top-stars-4b-a":     { mon: [["15:00","15:30"]], wed: [["15:00","15:30"]], fri: [["15:30","16:00"]] },
+  "top-stars-4b-a":     { mon: [["15:00","15:30"]], wed: [["15:00","15:30"]], fri: [["15:30","16:15"]] },
   "top-stars-4b-b":     { mon: [["16:00","16:45"]], tue: [["16:00","16:45"]], thu: [["16:00","16:45"]] },
   "top-stars-4b-1on1":  { mon: [["18:00","18:30"]] },
-  "wave-2-a":           { mon: [["17:00","17:45"]], wed: [["17:00","17:45"]], fri: [["17:00","18:00"]] },
-  "wave-2-b":           { tue: [["17:00","18:00"]], thu: [["17:00","18:00"]], fri: [["18:00","18:30"]] },
+  "wave-2-a":           { mon: [["17:00","17:45"]], wed: [["17:00","17:45"]], fri: [["17:00","17:45"]] },
+  "wave-2-b":           { tue: [["17:00","18:00"]], thu: [["17:00","18:00"]], fri: [["17:45","18:30"]] },
 };
 const WEEKDAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 const WEEKDAY_LABELS = { sun: "Sunday", mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday", sat: "Saturday" };

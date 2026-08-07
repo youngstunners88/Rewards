@@ -926,6 +926,10 @@ function openLessonLog() {
       sessionSelect.value = "custom";
       const fallbackStart = (cls && cls.startTime) || "15:00";
       if ([...customStartSelect.options].some(o => o.value === fallbackStart)) customStartSelect.value = fallbackStart;
+      const [fh, fm] = customStartSelect.value.split(":").map(Number);
+      const endMins = fh * 60 + fm + 45;
+      const fallbackEnd = `${String(Math.floor(endMins / 60) % 24).padStart(2, "0")}:${String(endMins % 60).padStart(2, "0")}`;
+      if ([...customEndSelect.options].some(o => o.value === fallbackEnd)) customEndSelect.value = fallbackEnd;
     } else {
       sessionSelect.value = scheduled[0].join("|");
     }

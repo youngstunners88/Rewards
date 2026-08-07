@@ -777,6 +777,233 @@ function formatDayKeyShort(key) {
   return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+/* ---------- Lesson Log (paste screenshots -> AI summary) ---------- */
+const LESSON_SUMMARY_ENDPOINT = "https://lyra-70fe0d09.base44.app/functions/generateLessonSummary";
+const LESSON_LOG_MAX_IMAGES = 5;
+
+function loadLessonLogs() {
+  try { return JSON.parse(localStorage.getItem(classKey("lessonLogs")) || "[]"); }
+  catch { return []; }
+}
+function saveLessonLogs(logs) {
+  localStorage.setItem(classKey("lessonLogs"), JSON.stringify(logs));
+}
+
+function dateInputToday() {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+function formatDateLong(isoDate) {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" });
+}
+function addHourToTime(hhmm) {
+  const [h, m] = hhmm.split(":").map(Number);
+  const total = (h * 60 + m + 60) % (24 * 60);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+function openLessonLog() {
+  const cls = CLASSES.find(c => c.id === activeClassId());
+  const className = cls ? cls.label : "Class";
+  const defaultStart = cls ? cls.startTime : "15:00";
+
+  const pastedImages = []; // array of dataURLs
+
+  const back = el("div", "modal-backdrop");
+  const modal = el("div", "modal modal-wide");
+  modal.appendChild(el("h2", null, "📝 Lesson Log — " + className));
+  modal.appendChild(el("p", "help", "Paste up to 5 screenshots of what you taught (Ctrl+V / ⌘V after clicking the box below), then generate the summary."));
+
+  // Date / time row
+  const dtRow = el("div", "row lesson-log-dt-row");
+  const dateWrap = el("div", null);
+  dateWrap.appendChild(el("label", null, "Date"));
+  const dateInput = document.createElement("input");
+  dateInput.type = "date"; dateInput.value = dateInputToday();
+  dateWrap.appendChild(dateInput);
+  const startWrap = el("div", null);
+  startWrap.appendChild(el("label", null, "Start"));
+  const startInput = document.createElement("input");
+  startInput.type = "time"; startInput.value = defaultStart;
+  startWrap.appendChild(startInput);
+  const endWrap = el("div", null);
+  endWrap.appendChild(el("label", null, "End"));
+  const endInput = document.createElement("input");
+  endInput.type = "time"; endInput.value = addHourToTime(defaultStart);
+  endWrap.appendChild(endInput);
+  dtRow.appendChild(dateWrap); dtRow.appendChild(startWrap); dtRow.appendChild(endWrap);
+  modal.appendChild(dtRow);
+
+  // Paste zone
+  const pasteZone = el("div", "lesson-paste-zone");
+  pasteZone.contentEditable = "true";
+  pasteZone.setAttribute("data-placeholder", "Click here, then paste screenshots (Ctrl+V / ⌘V) — up to 5");
+  modal.appendChild(pasteZone);
+
+  const thumbRow = el("div", "lesson-thumb-row");
+  modal.appendChild(thumbRow);
+
+  function renderThumbs() {
+    thumbRow.innerHTML = "";
+    pastedImages.forEach((src, idx) => {
+      const wrap = el("div", "lesson-thumb");
+      const img = document.createElement("img");
+      img.src = src;
+      wrap.appendChild(img);
+      const rm = button("✕", "lesson-thumb-remove", () => {
+        pastedImages.splice(idx, 1);
+        renderThumbs();
+      });
+      wrap.appendChild(rm);
+      thumbRow.appendChild(wrap);
+    });
+    pasteZone.setAttribute("data-placeholder",
+      pastedImages.length
+        ? `${pastedImages.length}/${LESSON_LOG_MAX_IMAGES} pasted — click here to paste more`
+        : "Click here, then paste screenshots (Ctrl+V / ⌘V) — up to 5");
+    genBtn.disabled = pastedImages.length === 0;
+  }
+
+  pasteZone.addEventListener("paste", (e) => {
+    e.preventDefault();
+    const items = (e.clipboardData && e.clipboardData.items) || [];
+    let added = false;
+    for (const item of items) {
+      if (pastedImages.length >= LESSON_LOG_MAX_IMAGES) break;
+      if (item.type && item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (!file) continue;
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (pastedImages.length < LESSON_LOG_MAX_IMAGES) {
+            pastedImages.push(reader.result);
+            renderThumbs();
+          }
+        };
+        reader.readAsDataURL(file);
+        added = true;
+      }
+    }
+    pasteZone.innerHTML = ""; // never let raw pasted content/text render inside
+    if (!added) pasteZone.textContent = "";
+  });
+
+  const genRow = el("div", "row");
+  const genBtn = button("✨ Generate Summary", "btn btn-settings", generateSummary);
+  genBtn.disabled = true;
+  genRow.appendChild(genBtn);
+  modal.appendChild(genRow);
+
+  const statusMsg = el("div", "help lesson-log-status");
+  modal.appendChild(statusMsg);
+
+  const outputWrap = el("div", "lesson-log-output-wrap");
+  outputWrap.style.display = "none";
+  const outputArea = document.createElement("textarea");
+  outputArea.className = "lesson-log-output";
+  outputArea.readOnly = true;
+  outputWrap.appendChild(outputArea);
+  const outputBtnRow = el("div", "row");
+  const copyBtn = button("📋 Copy", "btn btn-ghost btn-sm", () => {
+    outputArea.select();
+    navigator.clipboard && navigator.clipboard.writeText(outputArea.value).catch(() => {});
+    try { document.execCommand("copy"); } catch {}
+    copyBtn.textContent = "Copied!";
+    setTimeout(() => { copyBtn.textContent = "📋 Copy"; }, 1500);
+  });
+  const saveBtn = button("💾 Save to Lesson Log", "btn btn-ghost btn-sm", () => {
+    const logs = loadLessonLogs();
+    logs.unshift({
+      date: dateInput.value,
+      startTime: startInput.value,
+      endTime: endInput.value,
+      summary: outputArea.value,
+      createdAt: Date.now(),
+    });
+    saveLessonLogs(logs);
+    renderSavedLogs();
+    statusMsg.textContent = "Saved ✓";
+  });
+  outputBtnRow.appendChild(copyBtn);
+  outputBtnRow.appendChild(saveBtn);
+  outputWrap.appendChild(outputBtnRow);
+  modal.appendChild(outputWrap);
+
+  async function generateSummary() {
+    if (!pastedImages.length) return;
+    genBtn.disabled = true;
+    statusMsg.textContent = "Generating summary…";
+    outputWrap.style.display = "none";
+    try {
+      const resp = await fetch(LESSON_SUMMARY_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          images: pastedImages,
+          className,
+          date: formatDateLong(dateInput.value),
+          startTime: startInput.value,
+          endTime: endInput.value,
+        }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || data.error) throw new Error(data.error || "Request failed");
+      outputArea.value = data.summary;
+      outputWrap.style.display = "";
+      statusMsg.textContent = "";
+    } catch (err) {
+      statusMsg.textContent = "Couldn't generate summary: " + (err.message || err);
+    } finally {
+      genBtn.disabled = pastedImages.length === 0;
+    }
+  }
+
+  modal.appendChild(el("h3", "detail-section-title", "Saved lesson logs"));
+  const savedList = el("div", "lesson-log-saved-list");
+  modal.appendChild(savedList);
+
+  function renderSavedLogs() {
+    savedList.innerHTML = "";
+    const logs = loadLessonLogs();
+    if (!logs.length) {
+      savedList.appendChild(el("p", "help", "No lesson logs saved yet for this class."));
+      return;
+    }
+    logs.forEach((log, idx) => {
+      const item = el("div", "lesson-log-saved-item");
+      const head = el("div", "lesson-log-saved-head");
+      head.appendChild(el("span", null, `${formatDateLong(log.date)} · ${log.startTime}-${log.endTime}`));
+      const del = button("✕", "lesson-thumb-remove", () => {
+        if (!confirm("Delete this saved lesson log?")) return;
+        const fresh = loadLessonLogs();
+        fresh.splice(idx, 1);
+        saveLessonLogs(fresh);
+        renderSavedLogs();
+      });
+      head.appendChild(del);
+      item.appendChild(head);
+      const pre = document.createElement("pre");
+      pre.className = "lesson-log-saved-text";
+      pre.textContent = log.summary;
+      item.appendChild(pre);
+      savedList.appendChild(item);
+    });
+  }
+  renderSavedLogs();
+  renderThumbs();
+
+  const closeRow = el("div", "row");
+  closeRow.appendChild(button("Close", "btn btn-settings", closeModal));
+  modal.appendChild(closeRow);
+
+  back.appendChild(modal);
+  back.addEventListener("click", (e) => { if (e.target === back) closeModal(); });
+  document.body.appendChild(back);
+}
+
 /* ---------- Test score entry modal ---------- */
 function openAddTestScore() {
   const students = studentsForActiveClass();
@@ -1150,6 +1377,8 @@ function wireTopBar() {
   });
   const cal = document.getElementById("calendar-btn");
   if (cal) cal.addEventListener("click", openCalendar);
+  const lessonLog = document.getElementById("lesson-log-btn");
+  if (lessonLog) lessonLog.addEventListener("click", openLessonLog);
   const lb = document.getElementById("leaderboard-toggle");
   if (lb) lb.addEventListener("click", toggleLeaderboardScope);
   const addTest = document.getElementById("add-test-score-btn");

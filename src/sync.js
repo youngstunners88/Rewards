@@ -13,11 +13,15 @@
      - plain scalar values (active class, current date, etc.) just keep
        whatever is on this device unless this device has none yet
 
-   This file is intentionally self-contained and only talks to raw
-   localStorage keys under the "rewards." prefix — it has zero knowledge of
-   script.js internals, so it can't accidentally corrupt app state, and if
-   the network call fails for any reason the app keeps working fully
-   offline exactly as before.
+   Implementation note: this deliberately does NOT monkey-patch
+   localStorage.setItem (that's unreliable — some browsers treat Storage
+   prototype methods as non-writable on the instance, so the override
+   silently no-ops). Instead it polls localStorage every few seconds and
+   pushes only when the snapshot actually changed. This file only talks to
+   raw localStorage keys under the "rewards." prefix — it has zero knowledge
+   of script.js internals, so it can't corrupt app state, and if the network
+   call fails for any reason the app keeps working fully offline exactly as
+   before.
 --------------------------------------------------------------------------- */
 (function () {
   const LS_PREFIX = "rewards.";
@@ -26,27 +30,9 @@
   // needs to agree on the same group id to share the same cloud snapshot.
   const GROUP_ID = "chris-rewards-9f2a1c7e-sync-v1";
   const RELOAD_GUARD_KEY = "___rewardsSyncReloadedOnce___";
+  const POLL_MS = 4000;
 
-  let applyingMerge = false;
-  let pushTimer = null;
-
-  const realSetItem = localStorage.setItem.bind(localStorage);
-  const realRemoveItem = localStorage.removeItem.bind(localStorage);
-
-  // Monkey-patch localStorage so any write to a "rewards." key schedules a
-  // debounced push, with zero changes needed inside script.js.
-  localStorage.setItem = function (key, value) {
-    realSetItem(key, value);
-    if (!applyingMerge && typeof key === "string" && key.startsWith(LS_PREFIX)) {
-      schedulePush();
-    }
-  };
-  localStorage.removeItem = function (key) {
-    realRemoveItem(key);
-    if (!applyingMerge && typeof key === "string" && key.startsWith(LS_PREFIX)) {
-      schedulePush();
-    }
-  };
+  let lastPushedStr = null;
 
   function collectLocalSnapshot() {
     const data = {};
@@ -132,14 +118,9 @@
   }
 
   function applyMergedSnapshot(merged) {
-    applyingMerge = true;
-    try {
-      Object.keys(merged).forEach((k) => {
-        if (localStorage.getItem(k) !== merged[k]) realSetItem(k, merged[k]);
-      });
-    } finally {
-      applyingMerge = false;
-    }
+    Object.keys(merged).forEach((k) => {
+      if (localStorage.getItem(k) !== merged[k]) localStorage.setItem(k, merged[k]);
+    });
   }
 
   async function pullOnce() {
@@ -154,20 +135,21 @@
   }
 
   async function pushSnapshot(snapshotObj) {
+    const str = JSON.stringify(snapshotObj);
     const resp = await fetch(SYNC_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "push", groupId: GROUP_ID, snapshot: JSON.stringify(snapshotObj) }),
+      body: JSON.stringify({ action: "push", groupId: GROUP_ID, snapshot: str }),
     });
     if (!resp.ok) throw new Error("push failed: " + resp.status);
+    lastPushedStr = str;
   }
 
-  function schedulePush() {
-    if (pushTimer) clearTimeout(pushTimer);
-    pushTimer = setTimeout(() => {
-      pushTimer = null;
-      pushSnapshot(collectLocalSnapshot()).catch((err) => console.warn("[rewards-sync] push failed", err));
-    }, 2500);
+  function checkAndPushIfDirty() {
+    const snap = collectLocalSnapshot();
+    const str = JSON.stringify(snap);
+    if (str === lastPushedStr) return;
+    pushSnapshot(snap).catch((err) => console.warn("[rewards-sync] push failed", err));
   }
 
   async function initialSyncAndMerge() {
@@ -203,7 +185,8 @@
         location.reload();
       }
     } else {
-      // Local is already up to date; still push in case cloud was stale.
+      lastPushedStr = JSON.stringify(merged);
+      // Still push in case cloud was stale (e.g. cloud missing a key local has).
       pushSnapshot(merged).catch(() => {});
     }
   }
@@ -232,6 +215,7 @@
   }
 
   initialSyncAndMerge();
+  setInterval(checkAndPushIfDirty, POLL_MS);
   window.addEventListener("focus", () => { backgroundResync(); });
   document.addEventListener("visibilitychange", () => { if (!document.hidden) backgroundResync(); });
   setInterval(() => { backgroundResync(); }, 90000);

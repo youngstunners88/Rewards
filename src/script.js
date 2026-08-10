@@ -312,14 +312,17 @@ function pointsForScore(score) {
   if (n >= 50)  return 3;
   return 0;
 }
-function addTestScore(studentId, dateKey, score) {
+function addTestScore(studentId, dateKey, rawOutOf20) {
   if (!studentsForActiveClass().some(s => s.id === studentId)) return;
-  const points = pointsForScore(score);
+  const raw = Number(rawOutOf20);
+  const percentage = Math.round((raw / 20) * 100 * 10) / 10; // one decimal, e.g. 67.5%
+  const points = pointsForScore(percentage);
   if (!state.tests[studentId]) state.tests[studentId] = [];
   state.tests[studentId].push({
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     date: dateKey,
-    score: Number(score),
+    raw,
+    score: percentage,
     points,
     ts: Date.now(),
   });
@@ -748,7 +751,7 @@ function openStudentDetail(studentId) {
     const ul = el("ul", "detail-list");
     tests.slice(0, 15).forEach(t => {
       const li = el("li");
-      li.innerHTML = `<span>${formatDayKeyShort(t.date)} · ${t.score}%</span><span class="detail-list-tag">+${t.points}</span>`;
+      li.innerHTML = `<span>${formatDayKeyShort(t.date)} · ${t.raw != null ? `${t.raw}/20 (${t.score}%)` : `${t.score}%`}</span><span class="detail-list-tag">+${t.points}</span>`;
       ul.appendChild(li);
     });
     modal.appendChild(ul);
@@ -1152,10 +1155,19 @@ function openAddTestScore() {
   });
   modal.appendChild(select);
 
-  modal.appendChild(el("label", null, "Score (%)"));
+  modal.appendChild(el("label", null, "Score (out of 20)"));
   const scoreInput = document.createElement("input");
-  scoreInput.type = "number"; scoreInput.min = "0"; scoreInput.max = "100"; scoreInput.placeholder = "e.g. 90";
+  scoreInput.type = "number"; scoreInput.min = "0"; scoreInput.max = "20"; scoreInput.step = "0.5"; scoreInput.placeholder = "e.g. 17";
   modal.appendChild(scoreInput);
+  const scorePreview = el("p", "help", "");
+  modal.appendChild(scorePreview);
+  function updateScorePreview() {
+    const n = Number(scoreInput.value);
+    if (scoreInput.value === "" || isNaN(n)) { scorePreview.textContent = ""; return; }
+    const pct = Math.round((n / 20) * 100 * 10) / 10;
+    scorePreview.textContent = `= ${pct}% → +${pointsForScore(pct)} pts`;
+  }
+  scoreInput.addEventListener("input", updateScorePreview);
 
   modal.appendChild(el("label", null, "Date"));
   const scoreDate = { value: new Date() };
@@ -1172,16 +1184,15 @@ function openAddTestScore() {
   dayLabel.textContent = formatDayNav(scoreDate.value);
 
   modal.appendChild(el("p", "help",
-    "Points: 100%→20 · 90%→15 · 80%→10 · 70%→7 · 60%→5 · 50%→3 (below 50% → 0). Added straight to that day's points."));
+    "Enter the raw score out of 20 — the % and points are calculated automatically. Points: 100%→20 · 90%→15 · 80%→10 · 70%→7 · 60%→5 · 50%→3 (below 50%→0). Added straight to that day's points."));
 
   const row = el("div", "row");
   row.appendChild(button("Cancel", "btn btn-settings", closeModal));
   row.appendChild(button("Save", "btn btn-primary", () => {
     const score = scoreInput.value;
-    if (score === "" || isNaN(Number(score))) { alert("Enter a score between 0 and 100."); return; }
+    if (score === "" || isNaN(Number(score)) || Number(score) < 0 || Number(score) > 20) { alert("Enter a score between 0 and 20."); return; }
     const dateKey = isoDateOf(scoreDate.value);
-    addTestScore(select.value, dateKey, Math.max(0, Math.min(100, Number(score))));
-    addTestScore(select.value, dateKey, Math.max(0, Math.min(100, Number(score))));
+    addTestScore(select.value, dateKey, Number(score));
     closeModal();
   }));
   modal.appendChild(row);
@@ -1339,12 +1350,12 @@ function renderTestScores() {
     const li = document.createElement("li");
     li.innerHTML = `
       <span class="who">${student ? student.name : t.studentId}</span>
-      <span class="test-score-detail">${t.score}% · ${formatDayKeyShort(t.date)}</span>
+      <span class="test-score-detail">${t.raw != null ? `${t.raw}/20 (${t.score}%)` : `${t.score}%`} · ${formatDayKeyShort(t.date)}</span>
       <span class="score">+${t.points}</span>
       <button type="button" class="test-score-remove" title="Remove this entry" aria-label="Remove this test score">✕</button>
     `;
     li.querySelector(".test-score-remove").addEventListener("click", () => {
-      if (confirm(`Remove this ${t.score}% test score for ${student ? student.name : t.studentId}?`)) {
+      if (confirm(`Remove this ${t.raw != null ? `${t.raw}/20 (${t.score}%)` : `${t.score}%`} test score for ${student ? student.name : t.studentId}?`)) {
         removeTestScore(t.studentId, t.id);
       }
     });

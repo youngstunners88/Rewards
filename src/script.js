@@ -782,7 +782,7 @@ function formatDayKeyShort(key) {
 
 /* ---------- Lesson Log (paste screenshots -> AI summary) ---------- */
 const LESSON_SUMMARY_ENDPOINT = "https://lyra-70fe0d09.base44.app/functions/generateLessonSummary";
-const LESSON_LOG_MAX_IMAGES = 5;
+const LESSON_LOG_MAX_IMAGES = 3;
 
 // Chris's real weekly timetable (from the printed schedule photo), used to
 // build the "which session is this" dropdown so nobody has to type times.
@@ -859,7 +859,7 @@ function openLessonLog() {
   const modal = el("div", "modal modal-wide");
   const titleEl = el("h2", null, "📝 Lesson Log — " + session.className);
   modal.appendChild(titleEl);
-  modal.appendChild(el("p", "help", "Pick which class session this is, paste up to 5 screenshots of what you taught (Ctrl+V / ⌘V after clicking the box below), then generate the summary."));
+  modal.appendChild(el("p", "help", "Pick which class session this is, paste up to 3 screenshots of what you taught (Ctrl+V / ⌘V after clicking the box below), then generate the summary."));
 
   // Day navigator (plain text, no native OS date picker)
   const dayRow = el("div", "row lesson-log-day-row");
@@ -972,7 +972,7 @@ function openLessonLog() {
     // Paste zone
   const pasteZone = el("div", "lesson-paste-zone");
   pasteZone.contentEditable = "true";
-  pasteZone.setAttribute("data-placeholder", "Click here, then paste screenshots (Ctrl+V / ⌘V) — up to 5");
+  pasteZone.setAttribute("data-placeholder", "Click here, then paste screenshots (Ctrl+V / ⌘V) — up to 3");
   modal.appendChild(pasteZone);
 
   const thumbRow = el("div", "lesson-thumb-row");
@@ -995,7 +995,7 @@ function openLessonLog() {
     pasteZone.setAttribute("data-placeholder",
       pastedImages.length
         ? `${pastedImages.length}/${LESSON_LOG_MAX_IMAGES} pasted — click here to paste more`
-        : "Click here, then paste screenshots (Ctrl+V / ⌘V) — up to 5");
+        : "Click here, then paste screenshots (Ctrl+V / ⌘V) — up to 3");
     genBtn.disabled = pastedImages.length === 0;
   }
 

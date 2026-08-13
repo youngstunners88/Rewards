@@ -781,6 +781,45 @@ function formatDayKeyShort(key) {
 }
 
 /* ---------- Lesson Log (paste screenshots -> AI summary) ---------- */
+
+// Resize a pasted screenshot in the browser (native Canvas — no
+// third-party libs, no server-side dependency) before it's ever sent
+// over the wire. Also flattens transparency onto white (avoids odd
+// alpha-channel edge cases) and re-encodes as JPEG to keep payload +
+// vision-token cost down.
+function resizeDataUrlForUpload(dataUrl, maxWidth) {
+  return new Promise((resolve) => {
+    try {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          let width = img.naturalWidth || img.width;
+          let height = img.naturalHeight || img.height;
+          if (!width || !height) { resolve(dataUrl); return; }
+          if (width > maxWidth) {
+            height = Math.round(height * (maxWidth / width));
+            width = maxWidth;
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL("image/jpeg", 0.7));
+        } catch (_e) {
+          resolve(dataUrl);
+        }
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    } catch (_e) {
+      resolve(dataUrl);
+    }
+  });
+}
+
 const LESSON_SUMMARY_ENDPOINT = "https://lyra-70fe0d09.base44.app/functions/generateLessonSummary";
 const LESSON_LOG_MAX_IMAGES = 3;
 
@@ -1010,10 +1049,12 @@ function openLessonLog() {
         if (!file) continue;
         const reader = new FileReader();
         reader.onload = () => {
-          if (pastedImages.length < LESSON_LOG_MAX_IMAGES) {
-            pastedImages.push(reader.result);
-            renderThumbs();
-          }
+          resizeDataUrlForUpload(reader.result, 800).then((resizedUrl) => {
+            if (pastedImages.length < LESSON_LOG_MAX_IMAGES) {
+              pastedImages.push(resizedUrl);
+              renderThumbs();
+            }
+          });
         };
         reader.readAsDataURL(file);
         added = true;

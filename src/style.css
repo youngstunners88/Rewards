@@ -440,6 +440,12 @@ body {
   border: none; background: rgba(0,0,0,0.6); color: #fff;
   font-size: 12px; line-height: 20px; cursor: pointer; padding: 0;
 }
+.lesson-notes-textarea {
+  width: 100%; margin-top: 6px; font-family: inherit; font-size: 0.9rem;
+  border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; resize: vertical;
+  background: #fff;
+}
+.lesson-notes-textarea:focus { outline: none; border-color: #1d4ed8; background: #eff6ff; }
 .lesson-log-status { min-height: 18px; }
 .lesson-log-output-wrap { margin-top: 8px; }
 .lesson-log-output {

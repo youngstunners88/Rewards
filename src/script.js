@@ -1017,6 +1017,17 @@ function openLessonLog() {
   const thumbRow = el("div", "lesson-thumb-row");
   modal.appendChild(thumbRow);
 
+  // Typed notes — optional, and usable on its own with zero screenshots.
+  // Either input alone is enough to generate a summary; both together is
+  // also fine (notes supplement whatever the photos show).
+  const notesLabel = el("div", "help", "Or just type what you covered (no screenshot needed):");
+  modal.appendChild(notesLabel);
+  const notesArea = document.createElement("textarea");
+  notesArea.className = "lesson-notes-textarea";
+  notesArea.placeholder = "e.g. Wonders Book 3 Unit 5 — vocab: beach, forest; listening + matching; reviewed last week's test";
+  notesArea.rows = 3;
+  modal.appendChild(notesArea);
+
   function renderThumbs() {
     thumbRow.innerHTML = "";
     pastedImages.forEach((src, idx) => {
@@ -1035,7 +1046,7 @@ function openLessonLog() {
       pastedImages.length
         ? `${pastedImages.length}/${LESSON_LOG_MAX_IMAGES} pasted — click here to paste more`
         : "Click here, then paste screenshots (Ctrl+V / ⌘V) — up to 3");
-    genBtn.disabled = pastedImages.length === 0;
+    genBtn.disabled = pastedImages.length === 0 && !notesArea.value.trim();
   }
 
   pasteZone.addEventListener("paste", (e) => {
@@ -1069,6 +1080,10 @@ function openLessonLog() {
   genBtn.disabled = true;
   genRow.appendChild(genBtn);
   modal.appendChild(genRow);
+
+  notesArea.addEventListener("input", () => {
+    genBtn.disabled = pastedImages.length === 0 && !notesArea.value.trim();
+  });
 
   const statusMsg = el("div", "help lesson-log-status");
   modal.appendChild(statusMsg);
@@ -1106,7 +1121,8 @@ function openLessonLog() {
   modal.appendChild(outputWrap);
 
   async function generateSummary() {
-    if (!pastedImages.length) return;
+    const notesText = notesArea.value.trim();
+    if (!pastedImages.length && !notesText) return;
     genBtn.disabled = true;
     statusMsg.textContent = "Generating summary…";
     outputWrap.style.display = "none";
@@ -1116,6 +1132,7 @@ function openLessonLog() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           images: pastedImages,
+          notes: notesText,
           className: session.className,
           date: formatDateLong(isoDateOf(logDate.value)),
           startTime: session.start,
@@ -1130,7 +1147,7 @@ function openLessonLog() {
     } catch (err) {
       statusMsg.textContent = "Couldn't generate summary: " + (err.message || err);
     } finally {
-      genBtn.disabled = pastedImages.length === 0;
+      genBtn.disabled = pastedImages.length === 0 && !notesArea.value.trim();
     }
   }
 

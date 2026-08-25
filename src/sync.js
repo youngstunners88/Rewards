@@ -33,6 +33,13 @@
   const POLL_MS = 4000;
 
   let lastPushedStr = null;
+  // Nothing may push to the cloud until the initial pull+merge (or seed)
+  // has actually finished. This is the fix for the real incident that
+  // wiped the cloud snapshot to "{}": a fresh/empty browser session's
+  // periodic push fired before its first pull ever resolved, so it
+  // pushed emptiness and stomped real data. Now the interval below is a
+  // no-op until this flips to true.
+  let syncReady = false;
 
   function collectLocalSnapshot() {
     const data = {};
@@ -146,7 +153,9 @@
   }
 
   function checkAndPushIfDirty() {
+    if (!syncReady) return;
     const snap = collectLocalSnapshot();
+    if (Object.keys(snap).length === 0) return; // never push emptiness
     const str = JSON.stringify(snap);
     if (str === lastPushedStr) return;
     pushSnapshot(snap).catch((err) => console.warn("[rewards-sync] push failed", err));
@@ -164,7 +173,11 @@
 
     if (!cloudData) {
       // Nothing in the cloud yet — seed it with whatever this device already
-      // has. Local data is completely untouched.
+      // has. Local data is completely untouched. If THIS device is also
+      // empty (fresh browser), deliberately do NOT mark sync ready — we'd
+      // rather stay offline-only on this device than risk ever pushing an
+      // empty snapshot over real data that might exist elsewhere.
+      syncReady = Object.keys(localBefore).length > 0;
       if (Object.keys(localBefore).length) {
         pushSnapshot(localBefore).catch((err) => console.warn("[rewards-sync] seed push failed", err));
       }
@@ -175,9 +188,11 @@
     const changed = Object.keys(merged).some((k) => localBefore[k] !== merged[k]) ||
       Object.keys(cloudData).some((k) => !(k in localBefore));
 
+    syncReady = Object.keys(merged).length > 0;
+
     if (changed) {
       applyMergedSnapshot(merged);
-      pushSnapshot(merged).catch((err) => console.warn("[rewards-sync] post-merge push failed", err));
+      if (syncReady) pushSnapshot(merged).catch((err) => console.warn("[rewards-sync] post-merge push failed", err));
       // Reload once so the already-rendered UI picks up merged data. Guard
       // against loops with a one-shot sessionStorage flag.
       if (!sessionStorage.getItem(RELOAD_GUARD_KEY)) {
@@ -187,7 +202,7 @@
     } else {
       lastPushedStr = JSON.stringify(merged);
       // Still push in case cloud was stale (e.g. cloud missing a key local has).
-      pushSnapshot(merged).catch(() => {});
+      if (syncReady) pushSnapshot(merged).catch(() => {});
     }
   }
 

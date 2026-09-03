@@ -634,7 +634,7 @@ function restoreBackupFromFile(file) {
 }
 
 function openAvatarPicker(studentId) {
-  const student = (window.DEFAULT_STUDENTS || []).find(s => s.id === studentId);
+  const student = allStudentsRaw().find(s => s.id === studentId);
   if (!student) return;
   const currentSlug = avatarSlugForStudent(studentId);
   const back = el("div", "modal-backdrop");
@@ -653,7 +653,7 @@ function openAvatarPicker(studentId) {
     item.className = "avatar-picker-item" + (isMine ? " selected" : "") + (isTaken ? " taken" : "");
     item.disabled = !!isTaken;
     const takenName = isTaken
-      ? ((window.DEFAULT_STUDENTS || []).find(s => s.id === takenBy)?.name || "another student")
+      ? (allStudentsRaw().find(s => s.id === takenBy)?.name || "another student")
       : "";
     item.innerHTML = `
       <img src="./assets/images/avatars/${a.file}" alt="${a.name}" loading="lazy" />

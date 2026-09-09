@@ -28,6 +28,7 @@
     3: `${BASE}/sounds/reward-3.mp3`,
   };
   const DISCIPLINE_TONE = `${BASE}/sounds/discipline.mp3`;
+  const MILESTONE_CHIME = `${BASE}/sounds/milestone.mp3`;
 
   const VOICES_MANIFEST = `${BASE}/sounds/voices/manifest.json`;
   let voicesCache = null; // { reward: [...files], discipline: [...files] } | null (not loaded) | false (unavailable)
@@ -150,5 +151,53 @@
     if (!ok) showFallbackBurst(avatarEl, 1600);
   }
 
-  window.Reactions = { playReward, playDiscipline };
+  const CONFETTI_COLORS = ["#fbbf24", "#f472b6", "#60a5fa", "#34d399", "#f87171", "#a78bfa"];
+
+  function spawnConfetti(container, count) {
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement("span");
+      p.className = "milestone-confetti";
+      p.style.setProperty("--x", `${Math.round(Math.random() * 240 - 120)}px`);
+      p.style.setProperty("--rot", `${Math.round(Math.random() * 720 - 360)}deg`);
+      p.style.setProperty("--delay", `${Math.round(Math.random() * 180)}ms`);
+      p.style.setProperty("--fall-duration", `${(1.4 + Math.random() * 0.8).toFixed(2)}s`);
+      p.style.background = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+      container.appendChild(p);
+    }
+  }
+
+  // Full-width celebration banner (not scoped to one avatar) — a milestone
+  // is a bigger deal than a normal +N reward, so it gets a moment that's
+  // visible regardless of where on the roster the student's card is.
+  function showMilestoneBanner(name, milestone) {
+    document.querySelectorAll(".milestone-banner").forEach((n) => n.remove());
+    const banner = document.createElement("div");
+    banner.className = "milestone-banner";
+    banner.innerHTML = `
+      <div class="milestone-banner-inner">
+        <span class="milestone-emoji">🏆</span>
+        <span class="milestone-text">${name} hit ${milestone} points!</span>
+        <span class="milestone-sub">🎉 Congratulations! 🎉</span>
+      </div>
+    `;
+    document.body.appendChild(banner);
+    spawnConfetti(banner, 28);
+
+    const cleanup = () => banner.remove();
+    setTimeout(() => banner.classList.add("milestone-banner-out"), 2800);
+    setTimeout(cleanup, 3400);
+  }
+
+  function playMilestone(name, milestone, avatarEl) {
+    playAudio(MILESTONE_CHIME, { volume: 1 });
+    showMilestoneBanner(name, milestone);
+    // Bonus: also give the student's own avatar frame a quick sparkle burst
+    // if we know which card it is, on top of the big banner.
+    if (avatarEl) {
+      avatarEl.dataset.reactionKind = "reward";
+      showFallbackBurst(avatarEl, 1800);
+    }
+  }
+
+  window.Reactions = { playReward, playDiscipline, playMilestone };
 })();

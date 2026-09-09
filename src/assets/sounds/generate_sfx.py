@@ -35,6 +35,11 @@ def make_chime_note(freq, duration, envelope_type='bell', harmonics=[(1, 1.0), (
         elif envelope_type == 'linear':
             # Linear decay
             env = max(0.0, 1.0 - (t / duration))
+        elif envelope_type == 'sustain':
+            # Fast attack, slow decay — for a held/ringing final chord note.
+            attack = min(1.0, t / 0.015)
+            decay = math.exp(-2.0 * t)
+            env = attack * decay
         else:
             env = 1.0
             
@@ -120,6 +125,27 @@ def generate_discipline():
     ])
     save_wav('discipline.wav', mixed)
 
+def generate_milestone():
+    # Short (~2s) celebratory "milestone reached" jingle — bigger and
+    # brighter than the reward-3 fanfare. A quick 5-note ascending run
+    # (C5-E5-G5-C6-E6) followed by a held, shimmering C-major chord in
+    # the upper register (G5+C6+E6) that rings out for the celebration
+    # banner/announcement.
+    fanfare_harmonics = [(1, 1.0), (2, 0.6), (3, 0.4), (4, 0.2), (5, 0.1)]
+    run_notes = [523.25, 659.25, 783.99, 1046.50, 1318.51]  # C5 E5 G5 C6 E6
+    tracks = []
+    t = 0.0
+    for freq in run_notes:
+        tracks.append((t, make_chime_note(freq, duration=0.22, envelope_type='bell', harmonics=fanfare_harmonics)))
+        t += 0.105
+
+    chord_start = t + 0.02
+    for freq in [783.99, 1046.50, 1318.51]:  # G5 C6 E6 held chord
+        tracks.append((chord_start, make_chime_note(freq, duration=1.35, envelope_type='sustain', harmonics=fanfare_harmonics)))
+
+    mixed = mix_samples(tracks)
+    save_wav('milestone.wav', mixed)
+
 def convert_to_mp3(wav_filename, mp3_filename):
     print(f"Converting {wav_filename} to {mp3_filename}...")
     subprocess.run([
@@ -137,11 +163,13 @@ if __name__ == '__main__':
     generate_reward_2()
     generate_reward_3()
     generate_discipline()
+    generate_milestone()
     
     print("Converting to MP3 files...")
     convert_to_mp3('reward-1.wav', 'reward-1.mp3')
     convert_to_mp3('reward-2.wav', 'reward-2.mp3')
     convert_to_mp3('reward-3.wav', 'reward-3.mp3')
     convert_to_mp3('discipline.wav', 'discipline.mp3')
+    convert_to_mp3('milestone.wav', 'milestone.mp3')
     
     print("Audio assets generated successfully!")

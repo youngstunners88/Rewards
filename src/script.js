@@ -273,6 +273,7 @@ function checkIn(studentId) {
     const diffMin = (now - start) / 60000;
     ({ tier, points } = entryTierForDiff(diffMin));
   }
+  const beforeTotal = totalScoreFor(studentId);
   bag[studentId] = { time: formatClock(now), points, tier };
   saveEntries();
 
@@ -284,6 +285,7 @@ function checkIn(studentId) {
   sfx.happy();
   animatePop(studentId, `+${points}`);
   fireReaction("reward", points, studentId);
+  maybeCelebrateMilestone(studentId, beforeTotal);
   render();
 }
 function allEntriesFor(studentId) {
@@ -328,11 +330,13 @@ function addTestScore(studentId, dateKey, rawOutOf20) {
   });
   saveTests();
 
+  const beforeTotal = totalScoreFor(studentId);
   if (!state.dayScores[dateKey]) state.dayScores[dateKey] = {};
   state.dayScores[dateKey][studentId] = (state.dayScores[dateKey][studentId] || 0) + points;
   saveDayScores();
 
   sfx.happy();
+  maybeCelebrateMilestone(studentId, beforeTotal);
   render();
 }
 function removeTestScore(studentId, testId) {
@@ -396,6 +400,7 @@ function rewardPoints(amount) {
     state.currentDateKey = todayKey();
     state.sad = {};
   }
+  const beforeTotal = totalScoreFor(state.selectedId);
   const today = ensureToday();
   today[state.selectedId] = (today[state.selectedId] || 0) + amount;
   saveDayScores();
@@ -404,6 +409,7 @@ function rewardPoints(amount) {
   sfx.happy();
   animatePop(state.selectedId, `+${amount}`);
   fireReaction("reward", amount, state.selectedId);
+  maybeCelebrateMilestone(state.selectedId, beforeTotal);
   render();
 }
 
@@ -519,6 +525,42 @@ function fireReaction(kind, amount, studentId) {
   } catch (err) {
     console.warn("Reactions module error:", err);
   }
+}
+
+/* ---------- Milestone celebrations ----------
+   Whenever a student's ALL-TIME total crosses a multiple of 100 (100,
+   200, 300, ... no upper bound), play a short jingle + show a
+   congratulations banner. Works no matter which action pushed them over
+   the line (reward buttons, check-in points, or a test score), and no
+   matter which day's bucket the points landed in. */
+function crossedMilestone(beforeTotal, afterTotal) {
+  if (afterTotal <= beforeTotal) return null;
+  const beforeTier = Math.floor(beforeTotal / 100);
+  const afterTier = Math.floor(afterTotal / 100);
+  if (afterTier > beforeTier && afterTier >= 1) return afterTier * 100;
+  return null;
+}
+function maybeCelebrateMilestone(studentId, beforeTotal) {
+  const afterTotal = totalScoreFor(studentId);
+  const milestone = crossedMilestone(beforeTotal, afterTotal);
+  if (!milestone) return;
+  const student = allStudentsRaw().find(s => s.id === studentId);
+  const name = student ? student.name : "This student";
+  // Small delay so it reads as a distinct second beat after the regular
+  // +N reward chime/animation, instead of colliding with it.
+  setTimeout(() => fireMilestone(studentId, name, milestone), 400);
+}
+function fireMilestone(studentId, name, milestone) {
+  const card = document.querySelector(`.student-card[data-student-id="${studentId}"]`);
+  const anchor = card ? card.querySelector('[data-role="avatar-frame"]') : null;
+  if (window.Reactions && typeof window.Reactions.playMilestone === "function") {
+    try { window.Reactions.playMilestone(name, milestone, anchor); return; } catch (err) {
+      console.warn("Milestone reaction error:", err);
+    }
+  }
+  // Fallback if reactions.js hasn't loaded: still make some noise about it.
+  sfx.happy();
+  alert(`🏆 ${name} just hit ${milestone} points! Congratulations! 🎉`);
 }
 
 /* ---------- DOM helpers ---------- */

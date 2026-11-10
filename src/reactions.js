@@ -19,6 +19,7 @@
     1: `${BASE}/reactions/reward-tier1.webm`,
     2: `${BASE}/reactions/reward-tier2.webm`,
     3: `${BASE}/reactions/reward-tier3.webm`,
+    5: `${BASE}/reactions/reward-tier3.webm`, // +5 reuses the biggest clip, plus extra particles
   };
   const DISCIPLINE_VIDEO = `${BASE}/reactions/discipline-warning.webm`;
 
@@ -26,6 +27,7 @@
     1: `${BASE}/sounds/reward-1.mp3`,
     2: `${BASE}/sounds/reward-2.mp3`,
     3: `${BASE}/sounds/reward-3.mp3`,
+    5: `${BASE}/sounds/reward-3.mp3`,
   };
   const DISCIPLINE_TONE = `${BASE}/sounds/discipline.mp3`;
   const MILESTONE_CHIME = `${BASE}/sounds/milestone.mp3`;
@@ -68,14 +70,42 @@
     }
   }
 
-  function playChimeAndVoice(kind, tier) {
+  // Remember the last few voice lines so the same one never plays twice in a
+  // row (and rarely within a few turns) — random alone repeats surprisingly often.
+  const recentVoices = [];
+  const RECENT_MAX = 4;
+
+  function pickFresh(pool) {
+    if (!pool || !pool.length) return null;
+    let candidates = pool.filter((f) => !recentVoices.includes(f));
+    if (!candidates.length) candidates = pool.filter((f) => f !== recentVoices[recentVoices.length - 1]);
+    if (!candidates.length) candidates = pool;
+    const file = pickRandom(candidates);
+    recentVoices.push(file);
+    while (recentVoices.length > RECENT_MAX) recentVoices.shift();
+    return file;
+  }
+
+  // Choose the most specific pool available for what just happened, falling
+  // back to the old flat lists so an older manifest still works.
+  function voicePoolFor(manifest, kind, tier, ctx) {
+    if (kind === "discipline") {
+      return manifest.discipline;
+    }
+    if (ctx && ctx.comeback && manifest.comeback && manifest.comeback.length) return manifest.comeback;
+    if (ctx && ctx.streak >= 3 && manifest.streak && manifest.streak.length && Math.random() < 0.6) return manifest.streak;
+    const tierPool = manifest["tier" + tier];
+    if (tierPool && tierPool.length) return tierPool;
+    return manifest.reward;
+  }
+
+  function playChimeAndVoice(kind, tier, ctx) {
     const chimeSrc = kind === "reward" ? REWARD_CHIMES[tier] : DISCIPLINE_TONE;
     playAudio(chimeSrc, { volume: 1 });
 
     loadVoicesManifest().then((manifest) => {
       if (!manifest) return;
-      const pool = kind === "reward" ? manifest.reward : manifest.discipline;
-      const file = pickRandom(pool);
+      const file = pickFresh(voicePoolFor(manifest, kind, tier, ctx));
       if (!file) return;
       setTimeout(() => {
         playAudio(`${BASE}/sounds/voices/${file}`, { volume: 0.9 });
@@ -115,18 +145,19 @@
 
   const FALLBACK_EMOJI = { reward: ["✨", "⭐", "🎉", "🌟"], discipline: ["💧"] };
 
-  function showFallbackBurst(el, durationMs) {
+  function showFallbackBurst(el, durationMs, tier) {
     if (!el) return;
     clearOverlay(el);
     const overlay = document.createElement("div");
     overlay.className = "reaction-overlay reaction-fallback";
     overlay.textContent = "";
     const kindPool = el.dataset.reactionKind === "discipline" ? FALLBACK_EMOJI.discipline : FALLBACK_EMOJI.reward;
-    for (let i = 0; i < 6; i++) {
+    const n = tier === 5 ? 12 : tier === 3 ? 9 : 6;
+    for (let i = 0; i < n; i++) {
       const span = document.createElement("span");
       span.className = "reaction-particle";
       span.textContent = pickRandom(kindPool);
-      span.style.setProperty("--angle", `${(360 / 6) * i}deg`);
+      span.style.setProperty("--angle", `${(360 / n) * i}deg`);
       span.style.setProperty("--delay", `${i * 40}ms`);
       overlay.appendChild(span);
     }
@@ -134,17 +165,28 @@
     setTimeout(() => overlay.remove(), durationMs);
   }
 
-  function playReward(tier, avatarEl) {
-    const safeTier = [1, 2, 3].includes(tier) ? tier : 1;
-    playChimeAndVoice("reward", safeTier);
+  // Map any point amount onto one of our four reaction tiers.
+  function tierFor(points) {
+    if (points >= 5) return 5;
+    if (points >= 3) return 3;
+    if (points >= 2) return 2;
+    return 1;
+  }
+
+  function playReward(points, avatarEl, ctx) {
+    const safeTier = tierFor(points);
+    playChimeAndVoice("reward", safeTier, ctx);
     if (!avatarEl) return;
     avatarEl.dataset.reactionKind = "reward";
     const ok = showVideoOverlay(avatarEl, REWARD_VIDEOS[safeTier], 2200);
-    if (!ok) showFallbackBurst(avatarEl, 1800);
+    if (!ok) showFallbackBurst(avatarEl, 1800, safeTier);
+    // Extra flair scales with how big the reward was.
+    if (safeTier === 5) spawnStarShower(avatarEl);
+    if (ctx && ctx.streak >= 3) spawnStreakPop(avatarEl, ctx.streak);
   }
 
   function playDiscipline(avatarEl) {
-    playChimeAndVoice("discipline", null);
+    playChimeAndVoice("discipline", null, null);
     if (!avatarEl) return;
     avatarEl.dataset.reactionKind = "discipline";
     const ok = showVideoOverlay(avatarEl, DISCIPLINE_VIDEO, 2000);
@@ -190,6 +232,10 @@
 
   function playMilestone(name, milestone, avatarEl) {
     playAudio(MILESTONE_CHIME, { volume: 1 });
+    loadVoicesManifest().then((m) => {
+      const file = m && m.milestone && m.milestone.length ? pickFresh(m.milestone) : null;
+      if (file) setTimeout(() => playAudio(`${BASE}/sounds/voices/${file}`, { volume: 0.95 }), 900);
+    });
     showMilestoneBanner(name, milestone);
     // Bonus: also give the student's own avatar frame a quick sparkle burst
     // if we know which card it is, on top of the big banner.
@@ -199,5 +245,30 @@
     }
   }
 
-  window.Reactions = { playReward, playDiscipline, playMilestone };
+  // +5 "jackpot": a shower of stars falling across the whole card.
+  function spawnStarShower(anchorEl) {
+    const card = anchorEl.closest(".student-card") || anchorEl;
+    const glyphs = ["⭐", "🌟", "✨", "💫"];
+    for (let i = 0; i < 14; i++) {
+      const p = document.createElement("span");
+      p.className = "star-shower";
+      p.textContent = glyphs[i % glyphs.length];
+      p.style.left = `${Math.round(Math.random() * 100)}%`;
+      p.style.setProperty("--delay", `${Math.round(Math.random() * 350)}ms`);
+      p.style.setProperty("--drift", `${Math.round(Math.random() * 40 - 20)}px`);
+      card.appendChild(p);
+      setTimeout(() => p.remove(), 1700);
+    }
+  }
+
+  // Streak call-out: "🔥 x4" pops over the avatar.
+  function spawnStreakPop(anchorEl, streak) {
+    const pop = document.createElement("div");
+    pop.className = "streak-pop";
+    pop.textContent = `🔥 x${streak}`;
+    anchorEl.appendChild(pop);
+    setTimeout(() => pop.remove(), 1300);
+  }
+
+  window.Reactions = { playReward, playDiscipline, playMilestone, tierFor };
 })();

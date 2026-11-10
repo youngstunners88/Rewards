@@ -23,9 +23,9 @@ html, body { margin: 0; padding: 0; }
 body {
   font-family: var(--font);
   background:
-    radial-gradient(1200px 600px at 10% 0%, #ffe5b4 0%, transparent 60%),
-    radial-gradient(900px 500px at 100% 100%, #bde0fe 0%, transparent 60%),
-    radial-gradient(700px 500px at 50% 50%, #ffe0f0 0%, transparent 55%),
+    radial-gradient(1200px 600px at 10% 0%, var(--bg-a) 0%, transparent 60%),
+    radial-gradient(900px 500px at 100% 100%, var(--bg-b) 0%, transparent 60%),
+    radial-gradient(700px 500px at 50% 50%, var(--bg-c) 0%, transparent 55%),
     var(--bg);
   background-size: 140% 140%, 140% 140%, 140% 140%, 100% 100%;
   animation: bgDrift 26s ease-in-out infinite alternate;
@@ -110,13 +110,13 @@ body {
 .btn:focus-visible { outline: 3px solid #1d4ed8; outline-offset: 2px; }
 .btn-sm { padding: 6px 12px; font-size: 0.85rem; }
 
-.btn-primary  { background: var(--accent); color: #fff; }
+.btn-primary  { background: var(--accent); color: var(--accent-ink); }
 .btn-add      { background: var(--accent-2); color: #06343d; }
 .btn-remove   { background: #e63946; color: #fff; }
 .btn-sad      { background: #adb5bd; color: #212529; }
-.btn-settings { background: #fff; color: #212529; }
+.btn-settings { background: var(--card); color: var(--ink); }
 .btn-ghost    { background: transparent; color: var(--ink); box-shadow: none; border: 2px solid rgba(0,0,0,0.12); }
-.btn-point    { background: var(--good); color: #04382a; }
+.btn-point    { background: var(--good); color: var(--good-ink); }
 
 /* Class picker tabs */
 .class-picker-wrap { margin-bottom: 12px; }
@@ -128,12 +128,12 @@ body {
   display: flex; flex-direction: column; line-height: 1.2;
 }
 .class-tab-label { font-weight: 800; font-size: 0.95rem; }
-.class-tab-ages { font-size: 0.75rem; color: #777; }
-.class-tab.active { border-color: var(--accent); background: #fff1ee; }
+.class-tab-ages { font-size: 0.75rem; color: var(--ink-faint); }
+.class-tab.active { border-color: var(--accent); background: var(--surface-2); }
 
 /* Date bar */
 .date-bar { margin-bottom: 12px; }
-.today-label { font-weight: 700; color: #555; }
+.today-label { font-weight: 700; color: var(--ink-soft); }
 
 /* Reward row (+1/+2/+3 + sad, applies to the currently selected student) */
 .reward-bar {
@@ -161,14 +161,14 @@ body {
 .student-card.selected {
   outline: 3px solid var(--accent);
   outline-offset: 2px;
-  box-shadow: 0 8px 22px rgba(255,107,107,0.35);
+  box-shadow: 0 8px 22px var(--card-glow);
 }
 
 .avatar-frame {
   width: 96px; height: 96px; border-radius: 50%;
   margin: 0 auto 8px; position: relative;
   border: 3px solid var(--accent-3);
-  background: #f1f3f5;
+  background: var(--surface-2);
   cursor: pointer;
   overflow: visible;
 }
@@ -179,19 +179,19 @@ body {
 }
 .avatar-placeholder {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  width: 100%; height: 100%; font-size: 1.6rem; color: #999;
+  width: 100%; height: 100%; font-size: 1.6rem; color: var(--ink-faint);
 }
-.avatar-placeholder small { font-size: 0.55rem; font-weight: 700; color: #888; }
+.avatar-placeholder small { font-size: 0.55rem; font-weight: 700; color: var(--ink-faint); }
 
 .name { display: block; font-size: 1.05rem; font-weight: 700; margin: 2px 0; }
-.points { display: block; font-size: 0.85rem; color: #555; }
+.points { display: block; font-size: 0.85rem; color: var(--ink-soft); }
 .day-points { font-weight: 800; color: var(--ink); }
-.total-points { color: #888; }
+.total-points { color: var(--ink-faint); }
 
 /* Sad-face pin (current day only) */
 .sad-pin {
   position: absolute; top: -4px; right: -4px;
-  background: #fff; border-radius: 50%;
+  background: var(--card); border-radius: 50%;
   width: 32px; height: 32px; display: grid; place-items: center;
   font-size: 1.2rem; box-shadow: var(--shadow);
   animation: sad-pop 0.25s ease;
@@ -225,7 +225,7 @@ body {
   100% { opacity: 0; transform: translate(-50%, -40px) scale(1.2); }
 }
 
-.empty { color: #888; font-style: italic; }
+.empty { color: var(--ink-faint); font-style: italic; }
 
 /* Leaderboard */
 .leaderboard-wrap {
@@ -239,8 +239,8 @@ body {
 .leaderboard-head h2 { margin: 0; font-size: 1.1rem; }
 .leaderboard { margin: 0; padding-left: 22px; }
 .leaderboard li { padding: 4px 0; font-weight: 600; display: flex; gap: 8px; }
-.leaderboard li .rank { color: #999; }
-.leaderboard li .score, .leaderboard li .pts { color: #777; font-weight: 500; margin-left: auto; }
+.leaderboard li .rank { color: var(--ink-faint); }
+.leaderboard li .score, .leaderboard li .pts { color: var(--ink-faint); font-weight: 500; margin-left: auto; }
 
 /* Modal (add student, settings, avatar picker, calendar, etc.) */
 .modal-backdrop {
@@ -256,16 +256,16 @@ body {
 .modal h2 { margin: 0 0 12px; }
 .modal label { display: block; margin: 8px 0 4px; font-weight: 600; }
 .modal input[type=text] {
-  width: 100%; padding: 10px 12px; border: 2px solid #e9ecef;
+  width: 100%; padding: 10px 12px; border: 2px solid var(--line);
   border-radius: 10px; font-family: inherit; font-size: 1rem;
 }
 .modal input[type=text]:focus { outline: 3px solid #1d4ed8; outline-offset: 1px; }
 .modal .row {
   display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap;
   position: sticky; bottom: 0; background: var(--card);
-  padding: 10px 0 4px; border-top: 2px solid #f1f3f5; z-index: 2;
+  padding: 10px 0 4px; border-top: 2px solid var(--line); z-index: 2;
 }
-.modal .help { font-size: 0.85rem; color: #666; margin-top: 6px; }
+.modal .help { font-size: 0.85rem; color: var(--ink-soft); margin-top: 6px; }
 
 /* Avatar picker grid (30-avatar gallery) */
 .avatar-picker-grid {
@@ -274,7 +274,7 @@ body {
   margin-top: 10px;
 }
 .avatar-picker-item {
-  font-family: inherit; border: 2px solid #e9ecef; background: #fff;
+  font-family: inherit; border: 2px solid var(--line); background: var(--card);
   border-radius: 14px; padding: 8px; cursor: pointer; position: relative;
   display: flex; flex-direction: column; align-items: center; gap: 4px;
   transition: transform 0.1s ease, border-color 0.1s ease;
@@ -294,9 +294,9 @@ body {
 .cal-month-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .cal-month-label { font-weight: 800; }
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-.cal-day-head { font-size: 0.7rem; font-weight: 800; text-align: center; color: #999; padding: 4px 0; }
+.cal-day-head { font-size: 0.7rem; font-weight: 800; text-align: center; color: var(--ink-faint); padding: 4px 0; }
 .cal-cell {
-  font-family: inherit; border: 2px solid #eee; background: #fff;
+  font-family: inherit; border: 2px solid #eee; background: var(--card);
   border-radius: 10px; min-height: 44px; cursor: pointer;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
 }
@@ -309,8 +309,8 @@ body {
 .cal-day-detail { margin-top: 12px; border-top: 2px dashed #eee; padding-top: 10px; }
 .cal-day-list { margin: 0; padding-left: 20px; }
 .cal-day-list li { display: flex; gap: 8px; padding: 3px 0; }
-.cal-day-list li .score { margin-left: auto; color: #777; }
-.muted { color: #888; font-style: italic; }
+.cal-day-list li .score { margin-left: auto; color: var(--ink-faint); }
+.muted { color: var(--ink-faint); font-style: italic; }
 
 /* Reaction overlay anchor point — reactions.js positions confetti/video
    overlays relative to [data-role="avatar-frame"], which already has
@@ -397,7 +397,7 @@ body {
 .card-view-btn {
   position: absolute; top: 8px; left: 8px; z-index: 3;
   width: 26px; height: 26px; border-radius: 50%;
-  background: #fff; box-shadow: var(--shadow);
+  background: var(--card); box-shadow: var(--shadow);
   display: flex; align-items: center; justify-content: center;
   font-size: 0.85rem; cursor: pointer;
 }
@@ -415,7 +415,7 @@ body {
 }
 .test-scores-list li:last-child { border-bottom: none; }
 .test-scores-list .who { min-width: 90px; }
-.test-score-detail { color: #777; font-weight: 500; flex: 1; }
+.test-score-detail { color: var(--ink-faint); font-weight: 500; flex: 1; }
 .test-scores-list .score { color: var(--good); font-weight: 800; }
 .test-score-remove {
   border: 0; background: transparent; color: #c92a2a; cursor: pointer;
@@ -424,8 +424,8 @@ body {
 
 /* Modal form fields beyond plain text inputs */
 .modal select, .modal input[type=number], .modal input[type=date] {
-  width: 100%; padding: 10px 12px; border: 2px solid #e9ecef;
-  border-radius: 10px; font-family: inherit; font-size: 1rem; background: #fff;
+  width: 100%; padding: 10px 12px; border: 2px solid var(--line);
+  border-radius: 10px; font-family: inherit; font-size: 1rem; background: var(--card);
 }
 .modal select:focus, .modal input[type=number]:focus, .modal input[type=date]:focus {
   outline: 3px solid #1d4ed8; outline-offset: 1px;
@@ -435,7 +435,7 @@ body {
 .detail-head { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
 .detail-avatar {
   width: 72px; height: 72px; border-radius: 50%; overflow: hidden;
-  background: #f1f3f5; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  background: var(--surface-2); flex-shrink: 0; display: flex; align-items: center; justify-content: center;
   border: 3px solid var(--accent-3);
 }
 .detail-avatar img { width: 100%; height: 100%; object-fit: cover; }
@@ -444,7 +444,7 @@ body {
   background: #f8f9fa; border-radius: 12px; padding: 8px 14px; text-align: center; min-width: 72px;
 }
 .detail-stat-num { display: block; font-size: 1.3rem; font-weight: 900; color: var(--ink); }
-.detail-stat-label { display: block; font-size: 0.68rem; font-weight: 700; color: #888; text-transform: uppercase; }
+.detail-stat-label { display: block; font-size: 0.68rem; font-weight: 700; color: var(--ink-faint); text-transform: uppercase; }
 .detail-section-title { margin: 14px 0 6px; font-size: 0.95rem; }
 .detail-list { list-style: none; margin: 0; padding: 0; }
 .detail-list li {
@@ -452,7 +452,7 @@ body {
   border-bottom: 1px solid #f1f3f5; font-size: 0.85rem; font-weight: 600;
 }
 .detail-list li:last-child { border-bottom: none; }
-.detail-list-tag { color: #777; font-weight: 700; }
+.detail-list-tag { color: var(--ink-faint); font-weight: 700; }
 
 /* Lesson Log modal */
 .lesson-log-dt-row { display: flex; gap: 12px; flex-wrap: wrap; }
@@ -482,7 +482,7 @@ body {
 .lesson-notes-textarea {
   width: 100%; margin-top: 6px; font-family: inherit; font-size: 0.9rem;
   border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; resize: vertical;
-  background: #fff;
+  background: var(--card);
 }
 .lesson-notes-textarea:focus { outline: none; border-color: #1d4ed8; background: #eff6ff; }
 .lesson-log-status { min-height: 18px; }
@@ -502,3 +502,224 @@ body {
 .lesson-log-day-label { font-weight: 600; min-width: 160px; text-align: center; }
 .lesson-log-custom-row { display: flex; gap: 12px; margin-top: 8px; }
 .lesson-log-custom-row > div { flex: 1; }
+
+
+/* =====================================================================
+   Juice layer (Nov 2026) — tactile buttons, medals, streaks, level ring.
+   Everything reads theme tokens from themes.css so all looks get it.
+   ===================================================================== */
+
+/* Chunky "pressable" buttons: a lit top edge + a hard bottom shadow that
+   squashes when pressed, so every tap feels physical. */
+.btn-point, .btn-primary, .btn-add, .btn-sad, .btn-remove {
+  background-image: var(--btn-shine);
+  box-shadow: var(--btn-depth), var(--shadow);
+  transition: transform 0.07s ease, box-shadow 0.07s ease, filter 0.15s ease;
+}
+.btn-point:active:not([disabled]), .btn-primary:active, .btn-add:active, .btn-sad:active:not([disabled]) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.18), var(--shadow);
+}
+.btn-point:hover:not([disabled]) { transform: translateY(-2px) scale(1.04); }
+.btn-point[data-action="+5"] {
+  background-color: var(--gold); color: #3a2a00;
+  animation: shimmerBtn 2.8s ease-in-out infinite;
+}
+@keyframes shimmerBtn {
+  0%,100% { filter: brightness(1); }
+  50%     { filter: brightness(1.12) saturate(1.15); }
+}
+
+/* Student cards: hover lift + wiggle on avatar, themed border. */
+.student-card { border: var(--card-border); background-image: linear-gradient(180deg, rgba(255,255,255,0.10), transparent 40%); }
+.student-card:hover { transform: translateY(-4px) rotate(-0.4deg); box-shadow: 0 12px 26px var(--card-glow); }
+.student-card:hover .avatar { animation: avatarWiggle 0.6s ease; }
+@keyframes avatarWiggle {
+  0%,100% { transform: rotate(0); }
+  25% { transform: rotate(-6deg) scale(1.04); }
+  60% { transform: rotate(5deg) scale(1.04); }
+}
+.student-card.selected { animation: selectedPulse 1.8s ease-in-out infinite; }
+@keyframes selectedPulse {
+  0%,100% { box-shadow: 0 8px 22px var(--card-glow); }
+  50%     { box-shadow: 0 8px 34px var(--card-glow), 0 0 0 6px color-mix(in srgb, var(--accent) 18%, transparent); }
+}
+
+/* Level ring: a conic progress ring around the avatar showing progress to
+   the next 100-point milestone. --ring is 0..100 (set from script.js). */
+.avatar-frame.has-ring {
+  border: 0;
+  padding: 5px;
+  background: conic-gradient(var(--accent) calc(var(--ring, 0) * 1%), var(--line) 0);
+  transition: background 0.5s ease;
+}
+.avatar-frame.has-ring .avatar,
+.avatar-frame.has-ring .avatar-placeholder { border: 3px solid var(--card); }
+
+/* Level badge pinned to the avatar. */
+.level-badge {
+  position: absolute; left: -6px; bottom: -4px; z-index: 3;
+  min-width: 28px; height: 28px; padding: 0 6px; border-radius: 14px;
+  display: grid; place-items: center;
+  background: linear-gradient(135deg, var(--accent-3), var(--gold));
+  color: #3a2a00; font-size: 0.78rem; font-weight: 900;
+  box-shadow: 0 2px 0 rgba(0,0,0,0.2), var(--shadow);
+  border: 2px solid var(--card);
+}
+
+/* Streak flame: appears after 3 rewards in a row for the same student. */
+.streak-flame {
+  position: absolute; right: -4px; bottom: -6px; z-index: 3;
+  background: var(--card); border-radius: 14px; padding: 1px 7px;
+  font-size: 0.8rem; font-weight: 900; color: var(--accent);
+  box-shadow: var(--shadow); border: 2px solid var(--accent);
+  animation: flameFlicker 0.9s ease-in-out infinite alternate;
+}
+@keyframes flameFlicker {
+  from { transform: scale(1) rotate(-3deg); }
+  to   { transform: scale(1.12) rotate(3deg); }
+}
+
+/* Points readout gets a bolder, friendlier look. */
+.day-points { font-size: 1.1rem; }
+.name { font-size: 1.1rem; letter-spacing: 0.2px; }
+
+/* Leaderboard: podium medals for the top three. */
+.leaderboard { list-style: none; padding-left: 0; counter-reset: none; }
+.leaderboard li {
+  align-items: center; padding: 8px 10px; border-radius: 12px;
+  margin-bottom: 6px; background: var(--surface-2);
+  transition: transform 0.15s ease;
+}
+.leaderboard li:hover { transform: translateX(4px); }
+.leaderboard li .rank {
+  width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+  font-weight: 900; font-size: 0.85rem; background: var(--line); color: var(--ink);
+}
+.leaderboard li:nth-child(1) .rank { background: var(--gold);   color: #3a2a00; }
+.leaderboard li:nth-child(2) .rank { background: var(--silver); color: #1f2933; }
+.leaderboard li:nth-child(3) .rank { background: var(--bronze); color: #2b1600; }
+.leaderboard li:nth-child(1) { background: color-mix(in srgb, var(--gold) 22%, var(--surface-2)); }
+.leaderboard li .who { font-weight: 800; }
+
+/* Section cards share one friendly shape. */
+.reward-bar, .leaderboard-wrap, .test-scores-wrap, .modal { border: var(--card-border); }
+.leaderboard-head h2 { font-size: 1.25rem; }
+
+/* Theme picker (Settings). */
+.theme-picker { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin: 8px 0 4px; }
+.theme-swatch {
+  font-family: inherit; cursor: pointer; border: 3px solid var(--line);
+  border-radius: 16px; padding: 10px; background: var(--card); color: var(--ink);
+  display: flex; flex-direction: column; gap: 6px; align-items: center; font-weight: 800;
+  transition: transform 0.1s ease, border-color 0.1s ease;
+}
+.theme-swatch:hover { transform: translateY(-2px); }
+.theme-swatch.active { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); }
+.theme-swatch .dots { display: flex; gap: 4px; }
+.theme-swatch .dots i { width: 16px; height: 16px; border-radius: 50%; display: block; border: 1px solid rgba(0,0,0,0.15); }
+
+/* Respect reduced-motion for all the new loops. */
+@media (prefers-reduced-motion: reduce) {
+  .btn-point[data-action="+5"], .student-card.selected, .streak-flame,
+  .student-card:hover .avatar { animation: none !important; }
+}
+
+/* ---- Effects spawned by reactions.js ---- */
+.star-shower {
+  position: absolute; top: -8px; z-index: 30; pointer-events: none;
+  font-size: 1.3rem; opacity: 0;
+  animation: starFall 1.5s ease-in var(--delay, 0ms) forwards;
+}
+@keyframes starFall {
+  0%   { opacity: 0; transform: translate(0, -10px) scale(0.6) rotate(0); }
+  15%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--drift, 0), 150px) scale(1.1) rotate(300deg); }
+}
+.streak-pop {
+  position: absolute; left: 50%; top: -14px; z-index: 31; pointer-events: none;
+  transform: translateX(-50%); white-space: nowrap;
+  background: var(--accent); color: var(--accent-ink);
+  font-weight: 900; font-size: 1.05rem; padding: 3px 12px; border-radius: 16px;
+  box-shadow: var(--shadow);
+  animation: streakPop 1.2s cubic-bezier(.2,1.4,.4,1) forwards;
+}
+@keyframes streakPop {
+  0%   { opacity: 0; transform: translate(-50%, 14px) scale(0.5); }
+  25%  { opacity: 1; transform: translate(-50%, -6px) scale(1.15); }
+  80%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -26px) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .star-shower, .streak-pop { animation-duration: 0.01s !important; }
+}
+
+/* ---- Test scores: per-student overview + big "reveal" view ---- */
+.test-scores-list { list-style: none; padding: 0; margin: 0; }
+.test-student-row { margin-bottom: 6px; }
+.test-student-btn {
+  width: 100%; font-family: inherit; cursor: pointer; text-align: left;
+  display: grid; grid-template-columns: 1fr auto auto 30px; gap: 4px 10px; align-items: center;
+  background: var(--surface-2); color: var(--ink); border: 2px solid transparent;
+  border-radius: 12px; padding: 9px 12px; transition: transform .12s ease, border-color .12s ease;
+}
+.test-student-btn:hover { transform: translateX(4px); border-color: var(--accent); }
+.test-student-btn .who { font-weight: 800; grid-column: 1; }
+.test-student-btn .test-score-detail { grid-column: 1; font-size: .8rem; color: var(--ink-soft); }
+.test-avg { grid-column: 3; grid-row: 1 / span 2; font-weight: 900; color: var(--accent); }
+.test-count {
+  grid-column: 4; grid-row: 1 / span 2; width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center; font-size: .78rem; font-weight: 900;
+  background: var(--accent); color: var(--accent-ink);
+}
+.test-reveal { background: var(--surface-2); border-radius: 16px; padding: 14px; }
+.test-reveal-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.test-reveal-avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent); }
+.test-reveal-name { font-size: 1.5rem; font-weight: 900; }
+.test-reveal-sub { color: var(--ink-soft); font-weight: 700; }
+.test-reveal-list { list-style: none; padding: 0; margin: 0 0 10px; }
+.test-reveal-list li {
+  display: flex; align-items: center; gap: 10px; padding: 8px 6px;
+  border-bottom: 2px dashed var(--line);
+}
+.test-reveal-score { font-size: 1.9rem; font-weight: 900; color: var(--accent); min-width: 92px; }
+.test-reveal-list .test-score-detail { flex: 1; color: var(--ink-soft); }
+
+/* ---- Contrast fixes (measured with a WCAG ratio scan across all 5 themes) ---- */
+/* <button> elements do NOT inherit text colour by default (browsers use black),
+   which made names/tabs unreadable on dark themes. */
+button, .class-tab, .student-card, .card-view-btn { color: var(--ink); }
+.class-tab-label { color: var(--ink); }
+.name, .leaderboard li .who { color: var(--ink); }
+.btn-point[data-action="+5"] { color: #3a2a00; }
+
+/* Secondary text: --ink-faint is decorative-grade; real information uses --ink-soft. */
+:root { --ink-faint: #6e6e6e; }
+:root[data-theme="butter"]   { --ink-faint: #7a6840; --ink-soft: #5c4a28; }
+:root[data-theme="matcha"]   { --ink-faint: #5d7664; --ink-soft: #3a523f; }
+:root[data-theme="y2k"]      { --ink-faint: #75679a; --ink-soft: #4d3b73; }
+:root[data-theme="midnight"] { --ink-faint: #aeaad8; --ink-soft: #d3d0f2; }
+.total-points, .avatar-placeholder small, .leaderboard li .score, .leaderboard li .pts { color: var(--ink-soft); }
+
+/* Gold first-place row: keep the tint light enough for dark text, and make the
+   text colour explicit on every theme (dark themes use a dark tint instead). */
+.leaderboard li:nth-child(1) { background: color-mix(in srgb, var(--gold) 28%, var(--card)); }
+:root[data-theme="midnight"] .leaderboard li:nth-child(1) { background: color-mix(in srgb, var(--gold) 22%, var(--card)); }
+.leaderboard li { color: var(--ink); }
+
+/* Accent-coloured text sits on a tinted panel; use the dark ink for numbers
+   and keep accent for the pill only. */
+.test-avg { color: var(--ink); }
+.test-count { background: var(--accent); color: var(--accent-ink); }
+:root[data-theme="butter"] { --accent-ink: #2b1700; }
+:root[data-theme="matcha"] { --accent-ink: #ffffff; --accent: #3b8456; }
+:root[data-theme="y2k"]    { --accent-ink: #ffffff; --accent: #d6317f; }
+.level-badge { color: #3a2a00; }
+:root[data-theme="midnight"] .level-badge { color: #2b1a00; }
+.leaderboard li .score, .leaderboard li .pts, .test-scores-list .score { color: var(--ink); opacity: .85; }
+.test-scores-list .score { color: var(--good-text, var(--ink)); font-weight: 800; }
+:root { --good-text: #0a6b4f; }
+:root[data-theme="matcha"] { --good-text: #14633f; }
+:root[data-theme="midnight"] { --good-text: #5ff0b2; }
+/* Default (Sunny) coral is bright; white text on it is only 2.8:1, so use deep ink on the pill. */
+:root:not([data-theme]) .test-count { color: #2a0a0a; }

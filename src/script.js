@@ -284,7 +284,7 @@ function checkIn(studentId) {
 
   sfx.happy();
   animatePop(studentId, `+${points}`);
-  fireReaction("reward", points, studentId);
+  fireReaction("reward", points, studentId, reactionContextFor(studentId, 1));
   maybeCelebrateMilestone(studentId, beforeTotal);
   render();
 }
@@ -401,6 +401,8 @@ function rewardPoints(amount) {
     state.sad = {};
   }
   const beforeTotal = totalScoreFor(state.selectedId);
+  const streak = bumpStreak(state.selectedId);
+  const ctx = reactionContextFor(state.selectedId, streak);
   const today = ensureToday();
   today[state.selectedId] = (today[state.selectedId] || 0) + amount;
   saveDayScores();
@@ -408,7 +410,7 @@ function rewardPoints(amount) {
   if (Object.keys(state.sad).length) saveSad();
   sfx.happy();
   animatePop(state.selectedId, `+${amount}`);
-  fireReaction("reward", amount, state.selectedId);
+  fireReaction("reward", amount, state.selectedId, ctx);
   maybeCelebrateMilestone(state.selectedId, beforeTotal);
   render();
 }
@@ -421,8 +423,10 @@ function giveSad() {
     state.sad = {};
   }
   state.sad[state.selectedId] = true;
+  pendingComeback.add(state.selectedId);
   saveSad();
   sfx.sad();
+  resetStreak();
   fireReaction("discipline", null, state.selectedId);
   render();
 }
@@ -512,15 +516,37 @@ function animatePop(studentId, label) {
   setTimeout(() => tag.remove(), 950);
 }
 
+/* ---------- Streaks & comebacks (session-only, never persisted) ----------
+   A "streak" is consecutive rewards to the SAME student with no other
+   student rewarded in between (so it reflects a student really doing well
+   in a row, not just being picked often across a long class). A "comeback"
+   is a reward right after that student got a sad face today. */
+const sessionStreak = { id: null, count: 0 };
+function bumpStreak(studentId) {
+  if (sessionStreak.id === studentId) sessionStreak.count += 1;
+  else { sessionStreak.id = studentId; sessionStreak.count = 1; }
+  return sessionStreak.count;
+}
+function resetStreak() { sessionStreak.id = null; sessionStreak.count = 0; }
+// Students who got a sad face and have not yet been rewarded since. The sad
+// mark itself stays on the card all day, so we need this separate one-shot
+// flag or EVERY later reward would be announced as a "comeback".
+const pendingComeback = new Set();
+function reactionContextFor(studentId, streak) {
+  const comeback = pendingComeback.has(studentId);
+  pendingComeback.delete(studentId);
+  return { streak, comeback };
+}
+
 /* Bridges to reactions.js (HyperFrames-authored / fallback animations +
    real sound-bite files). Falls back to a no-op if reactions.js hasn't
    loaded, so the app still works without it. */
-function fireReaction(kind, amount, studentId) {
+function fireReaction(kind, amount, studentId, ctx) {
   const card = document.querySelector(`.student-card[data-student-id="${studentId}"]`);
   const anchor = card ? card.querySelector('[data-role="avatar-frame"]') : null;
   if (!window.Reactions) return;
   try {
-    if (kind === "reward") window.Reactions.playReward(amount, anchor);
+    if (kind === "reward") window.Reactions.playReward(amount, anchor, ctx);
     else if (kind === "discipline") window.Reactions.playDiscipline(anchor);
   } catch (err) {
     console.warn("Reactions module error:", err);
@@ -601,6 +627,32 @@ function openAddStudent() {
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") { addStudent(input.value); closeModal(); } });
 }
 
+/* ---------- Themes ----------
+   A theme is just <html data-theme="..."> plus the variables in themes.css.
+   Stored under a "rewards." key so the existing cloud sync carries it to
+   every device. "" = the original sunny look. */
+const LS_THEME = "rewards.theme.v1";
+const THEMES = [
+  { id: "",         label: "Sunny",    dots: ["#ff6b6b", "#4ecdc4", "#ffd166"] },
+  { id: "butter",   label: "Butter",   dots: ["#e8913a", "#f2c14e", "#fff0b8"] },
+  { id: "matcha",   label: "Matcha",   dots: ["#4f9d69", "#9ccc65", "#e1f0d3"] },
+  { id: "y2k",      label: "Y2K",      dots: ["#ff4fa3", "#3fd6ff", "#ffe14d"] },
+  { id: "midnight", label: "Midnight", dots: ["#ff7a90", "#5ee7df", "#1f1f45"] },
+];
+function currentTheme() {
+  const t = localStorage.getItem(LS_THEME) || "";
+  return THEMES.some(x => x.id === t) ? t : "";
+}
+function applyTheme(id) {
+  if (id) document.documentElement.setAttribute("data-theme", id);
+  else document.documentElement.removeAttribute("data-theme");
+}
+function setTheme(id) {
+  localStorage.setItem(LS_THEME, id);
+  applyTheme(id);
+}
+applyTheme(currentTheme());
+
 function openSettings() {
   const back = el("div", "modal-backdrop");
   const modal = el("div", "modal");
@@ -623,6 +675,28 @@ function openSettings() {
   });
   backupRow.appendChild(importBtn);
   modal.appendChild(backupRow);
+
+  modal.appendChild(el("h3", "detail-section-title", "🎨 Look"));
+  const picker = el("div", "theme-picker");
+  picker.setAttribute("role", "radiogroup");
+  picker.setAttribute("aria-label", "Colour theme");
+  const refreshPicker = () => picker.querySelectorAll(".theme-swatch").forEach(b => {
+    const on = b.dataset.theme === currentTheme();
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-checked", on ? "true" : "false");
+  });
+  THEMES.forEach(t => {
+    const b = el("button", "theme-swatch");
+    b.type = "button";
+    b.dataset.theme = t.id;
+    b.setAttribute("role", "radio");
+    b.innerHTML = `<span class="dots">${t.dots.map(c => `<i style="background:${c}"></i>`).join("")}</span><span>${t.label}</span>`;
+    b.addEventListener("click", () => { setTheme(t.id); refreshPicker(); });
+    picker.appendChild(b);
+  });
+  refreshPicker();
+  modal.appendChild(picker);
+
   modal.appendChild(el("p", "help",
     "Backup saves every class's points, check-ins, test scores, and avatar picks to a file on this device. Browsers (especially Safari on iPhone/iPad) can sometimes clear site data after long inactivity — download a backup regularly and keep it somewhere safe, like email or Notes, so you can always restore."));
 
@@ -1322,12 +1396,14 @@ function switchClass(newId) {
   if (newId === activeClassId()) return;
   state.activeClassId = newId;
   state.selectedId = null;
+  testView.openStudentId = null; // never carry a "reveal" over into another class
+  resetStreak();
   localStorage.setItem(LS_ACTIVE, newId);
   loadClassData();
-  renderClassPicker();
-  renderRoster();
-  renderLeaderboard();
-  updateButtonStates();
+  // Full render (not a hand-picked subset): the Test Scores panel, date label
+  // and buttons all depend on the active class. Skipping any of them used to
+  // leave the PREVIOUS class's test scores on screen after switching tabs.
+  render();
 }
 
 /* ---------- Roster grid ---------- */
@@ -1349,6 +1425,11 @@ function renderRoster() {
     const slug = avatarSlugForStudent(s.id);
     const avatarSrc = slug ? avatarFileFor(slug) : null;
     const checkedIn = entryForToday(s.id);
+    // Level = every 100 all-time points (same unit as the milestone jingle).
+    // The ring shows progress toward the NEXT level.
+    const level = Math.floor(totalPts / 100) + 1;
+    const ringPct = totalPts > 0 ? totalPts % 100 : 0;
+    const streakHere = sessionStreak.id === s.id ? sessionStreak.count : 0;
     const card = document.createElement("button");
     card.type = "button";
     card.className = "student-card" + (isSelected ? " selected" : "");
@@ -1356,11 +1437,13 @@ function renderRoster() {
     card.dataset.studentId = s.id;
     card.innerHTML = `
       <span class="card-view-btn" data-role="view-btn" title="View ${s.name}'s records">👁</span>
-      <div class="avatar-frame${avatarSrc ? "" : " avatar-frame-empty"}" data-role="avatar-frame" title="${avatarSrc ? "Change avatar" : "Choose an avatar"}">
+      <div class="avatar-frame${avatarSrc ? " has-ring" : " avatar-frame-empty"}" data-role="avatar-frame" style="--ring:${ringPct}" title="${avatarSrc ? "Change avatar" : "Choose an avatar"}">
         ${avatarSrc
           ? `<img class="avatar" src="${avatarSrc}" alt="${s.name} avatar" loading="lazy" />`
           : `<span class="avatar avatar-placeholder">🎭<br><small>Pick avatar</small></span>`}
         ${isSad ? `<span class="sad-pin" aria-label="marked sad">☹</span>` : ``}
+        ${avatarSrc ? `<span class="level-badge" title="Level ${level}: ${100 - ringPct} points to level ${level + 1}" aria-label="Level ${level}">Lv ${level}</span>` : ``}
+        ${streakHere >= 3 ? `<span class="streak-flame" aria-label="${streakHere} in a row">🔥${streakHere}</span>` : ``}
       </div>
       <span class="name">${s.name}</span>
       <span class="points">
@@ -1435,30 +1518,100 @@ function toggleLeaderboardScope() {
 }
 
 /* ---------- Test scores tab ---------- */
+/* Test-score panel state. `openStudentId` = the student whose results are
+   currently shown big in "reveal" mode; always cleared when the class changes. */
+const testView = { openStudentId: null };
+
+function testAvg(list) {
+  if (!list.length) return 0;
+  return Math.round((list.reduce((n, t) => n + (Number(t.score) || 0), 0) / list.length) * 10) / 10;
+}
+function testLine(t) {
+  return t.raw != null ? `${t.raw}/20 (${t.score}%)` : `${t.score}%`;
+}
+
 function renderTestScores() {
   const list = document.getElementById("test-scores-list");
   if (!list) return;
   list.innerHTML = "";
-  const rows = testsForActiveClass();
-  if (!rows.length) {
-    list.innerHTML = `<li class="empty">No test scores recorded yet.</li>`;
+
+  const cls = CLASSES.find(c => c.id === activeClassId());
+  const students = studentsForActiveClass();
+  const ids = new Set(students.map(s => s.id));
+
+  // Panel heading always names the class so it's obvious whose scores these are.
+  const heading = document.querySelector(".test-scores-wrap .leaderboard-head h2");
+  if (heading) heading.textContent = `🧪 Test Scores · ${cls ? cls.label : ""}`;
+
+  // Group by student, strictly limited to the active class's roster.
+  const rows = testsForActiveClass().filter(t => ids.has(t.studentId));
+  const byStudent = new Map();
+  rows.forEach(t => {
+    if (!byStudent.has(t.studentId)) byStudent.set(t.studentId, []);
+    byStudent.get(t.studentId).push(t);
+  });
+
+  // A reveal target from another class can never be shown.
+  if (testView.openStudentId && !ids.has(testView.openStudentId)) testView.openStudentId = null;
+
+  if (!byStudent.size) {
+    list.innerHTML = `<li class="empty">No test scores recorded for ${cls ? cls.label : "this class"} yet.</li>`;
     return;
   }
-  const students = studentsForActiveClass();
-  rows.slice(0, 12).forEach(t => {
-    const student = students.find(s => s.id === t.studentId);
+
+  // Reveal mode: one student's results, big and clear, for showing them.
+  if (testView.openStudentId) {
+    const sid = testView.openStudentId;
+    const student = students.find(s => s.id === sid);
+    const mine = (byStudent.get(sid) || []).slice();
+    const slug = avatarSlugForStudent(sid);
+    const src = slug ? avatarFileFor(slug) : null;
     const li = document.createElement("li");
+    li.className = "test-reveal";
     li.innerHTML = `
-      <span class="who">${student ? student.name : t.studentId}</span>
-      <span class="test-score-detail">${t.raw != null ? `${t.raw}/20 (${t.score}%)` : `${t.score}%`} · ${formatDayKeyShort(t.date)}</span>
-      <span class="score">+${t.points}</span>
-      <button type="button" class="test-score-remove" title="Remove this entry" aria-label="Remove this test score">✕</button>
+      <div class="test-reveal-head">
+        ${src ? `<img class="test-reveal-avatar" src="${src}" alt="" />` : ``}
+        <div>
+          <div class="test-reveal-name">${student ? student.name : sid}</div>
+          <div class="test-reveal-sub">${mine.length} test${mine.length === 1 ? "" : "s"} · average ${testAvg(mine)}%</div>
+        </div>
+      </div>
+      <ul class="test-reveal-list"></ul>
+      <button type="button" class="btn btn-settings btn-sm test-reveal-back">‹ Back to class</button>
     `;
-    li.querySelector(".test-score-remove").addEventListener("click", () => {
-      if (confirm(`Remove this ${t.raw != null ? `${t.raw}/20 (${t.score}%)` : `${t.score}%`} test score for ${student ? student.name : t.studentId}?`)) {
-        removeTestScore(t.studentId, t.id);
-      }
+    const ul = li.querySelector(".test-reveal-list");
+    mine.forEach(t => {
+      const row = document.createElement("li");
+      row.innerHTML = `
+        <span class="test-reveal-score">${t.score}%</span>
+        <span class="test-score-detail">${t.raw != null ? `${t.raw} out of 20` : ``} · ${formatDayKeyShort(t.date)}</span>
+        <span class="score">+${t.points}</span>
+        <button type="button" class="test-score-remove" title="Remove this entry" aria-label="Remove this test score">✕</button>`;
+      row.querySelector(".test-score-remove").addEventListener("click", () => {
+        if (confirm(`Remove this ${testLine(t)} test score for ${student ? student.name : sid}?`)) removeTestScore(sid, t.id);
+      });
+      ul.appendChild(row);
     });
+    li.querySelector(".test-reveal-back").addEventListener("click", () => { testView.openStudentId = null; renderTestScores(); });
+    list.appendChild(li);
+    return;
+  }
+
+  // Overview: one row per student (latest score + average); tap to reveal.
+  students.forEach(student => {
+    const mine = byStudent.get(student.id);
+    if (!mine) return;
+    const latest = mine[0]; // already newest-first
+    const li = document.createElement("li");
+    li.className = "test-student-row";
+    li.innerHTML = `
+      <button type="button" class="test-student-btn" aria-label="Show ${student.name}'s test scores">
+        <span class="who">${student.name}</span>
+        <span class="test-score-detail">Latest ${testLine(latest)} · ${formatDayKeyShort(latest.date)}</span>
+        <span class="test-avg">avg ${testAvg(mine)}%</span>
+        <span class="test-count">${mine.length}</span>
+      </button>`;
+    li.querySelector(".test-student-btn").addEventListener("click", () => { testView.openStudentId = student.id; renderTestScores(); });
     list.appendChild(li);
   });
 }

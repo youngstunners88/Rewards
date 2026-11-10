@@ -1,4 +1,99 @@
 {
-  "reward": ["good-work.mp3", "yay.mp3", "awesome-job.mp3", "youre-a-star.mp3", "nice-one.mp3"],
-  "discipline": ["oh-oh.mp3", "sorry-buddy.mp3"]
+  "reward": [
+    "good-work.mp3",
+    "yay.mp3",
+    "awesome-job.mp3",
+    "youre-a-star.mp3",
+    "nice-one.mp3",
+    "way-to-go.mp3",
+    "well-done.mp3",
+    "thumbs-up.mp3",
+    "keep-going.mp3",
+    "so-good.mp3",
+    "you-got-it.mp3",
+    "fantastic.mp3",
+    "brilliant.mp3",
+    "high-five.mp3",
+    "super-duper.mp3",
+    "proud-of-you.mp3",
+    "look-at-you-go.mp3",
+    "you-did-it.mp3",
+    "boom-nailed-it.mp3",
+    "superstar.mp3",
+    "wow-great-job.mp3",
+    "thats-amazing.mp3",
+    "wonderful.mp3",
+    "incredible.mp3",
+    "youre-on-fire.mp3",
+    "absolutely-amazing.mp3",
+    "champion.mp3",
+    "unstoppable.mp3",
+    "best-ever.mp3",
+    "on-a-roll.mp3",
+    "again-amazing.mp3",
+    "keep-it-up.mp3",
+    "youre-on-a-streak.mp3",
+    "thats-better.mp3",
+    "i-knew-you-could.mp3",
+    "back-on-track.mp3"
+  ],
+  "discipline": [
+    "oh-oh.mp3",
+    "sorry-buddy.mp3",
+    "lets-try-again.mp3",
+    "take-a-breath.mp3",
+    "you-can-do-it.mp3",
+    "listen-up-friends.mp3",
+    "lets-be-kind.mp3",
+    "oops-thats-okay.mp3"
+  ],
+  "tier1": [
+    "way-to-go.mp3",
+    "well-done.mp3",
+    "thumbs-up.mp3",
+    "keep-going.mp3",
+    "so-good.mp3",
+    "you-got-it.mp3"
+  ],
+  "tier2": [
+    "fantastic.mp3",
+    "brilliant.mp3",
+    "high-five.mp3",
+    "super-duper.mp3",
+    "proud-of-you.mp3",
+    "look-at-you-go.mp3"
+  ],
+  "tier3": [
+    "you-did-it.mp3",
+    "boom-nailed-it.mp3",
+    "superstar.mp3",
+    "wow-great-job.mp3",
+    "thats-amazing.mp3",
+    "wonderful.mp3"
+  ],
+  "tier5": [
+    "incredible.mp3",
+    "youre-on-fire.mp3",
+    "absolutely-amazing.mp3",
+    "champion.mp3",
+    "unstoppable.mp3",
+    "best-ever.mp3"
+  ],
+  "milestone": [
+    "one-hundred-points-amazing.mp3",
+    "one-hundred-points-superstar.mp3",
+    "wow-one-hundred-points.mp3",
+    "one-hundred-points-high-five.mp3"
+  ],
+  "streak": [
+    "on-a-roll.mp3",
+    "again-amazing.mp3",
+    "keep-it-up.mp3",
+    "youre-on-a-streak.mp3"
+  ],
+  "comeback": [
+    "thats-better.mp3",
+    "i-knew-you-could.mp3",
+    "back-on-track.mp3"
+  ]
 }

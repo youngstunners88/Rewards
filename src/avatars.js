@@ -114,9 +114,34 @@ window.AVATAR_GALLERY = [
   { slug: "longboard-teen",        name: "Longboarder",         file: "longboard-teen.png",        tags: ["teen", "cool"] },
   { slug: "fashion-icon-teen",     name: "Fashion Icon",        file: "fashion-icon-teen.png",     tags: ["teen", "fashion"] },
   { slug: "rock-climber-teen",     name: "Rock Climber",        file: "rock-climber-teen.png",     tags: ["teen", "action"] },
+  // ---- Added Nov 2026 — 24 more avatars ----
+  { slug: "vet-kid", name: "Vet Kid", file: "vet-kid.png", tags: ["animals", "caring"] },
+  { slug: "beekeeper-kid", name: "Beekeeper Kid", file: "beekeeper-kid.png", tags: ["bees", "nature"] },
+  { slug: "lighthouse-keeper-kid", name: "Lighthouse Keeper", file: "lighthouse-keeper-kid.png", tags: ["sea", "brave"] },
+  { slug: "marine-biologist-kid", name: "Jellyfish Scientist", file: "marine-biologist-kid.png", tags: ["ocean", "science"] },
+  { slug: "jungle-explorer-kid", name: "Jungle Explorer", file: "jungle-explorer-kid.png", tags: ["jungle", "adventure"] },
+  { slug: "robot-mechanic-kid", name: "Robot Mechanic", file: "robot-mechanic-kid.png", tags: ["tech", "fixing"] },
+  { slug: "puddle-jumper-kid", name: "Puddle Jumper", file: "puddle-jumper-kid.png", tags: ["rain", "silly"] },
+  { slug: "kite-flyer-kid", name: "Kite Flyer", file: "kite-flyer-kid.png", tags: ["wind", "outdoors"] },
+  { slug: "train-conductor-kid", name: "Train Conductor", file: "train-conductor-kid.png", tags: ["trains", "travel"] },
+  { slug: "circus-juggler-kid", name: "Circus Juggler", file: "circus-juggler-kid.png", tags: ["circus", "showtime"] },
+  { slug: "firefly-lantern-kid", name: "Firefly Lantern Kid", file: "firefly-lantern-kid.png", tags: ["night", "magic"] },
+  { slug: "volcano-scientist-kid", name: "Volcano Scientist", file: "volcano-scientist-kid.png", tags: ["science", "volcano"] },
+  { slug: "polar-explorer-kid", name: "Polar Explorer", file: "polar-explorer-kid.png", tags: ["winter", "penguin"] },
+  { slug: "cloud-painter-kid", name: "Cloud Painter", file: "cloud-painter-kid.png", tags: ["art", "sky"] },
+  { slug: "bubble-wizard-kid", name: "Bubble Wizard", file: "bubble-wizard-kid.png", tags: ["magic", "silly"] },
+  { slug: "treehouse-builder-kid", name: "Treehouse Builder", file: "treehouse-builder-kid.png", tags: ["building", "outdoors"] },
+  { slug: "library-owl-keeper-kid", name: "Library Owl Keeper", file: "library-owl-keeper-kid.png", tags: ["reading", "owl"] },
+  { slug: "ice-cream-owner-kid", name: "Ice-Cream Owner", file: "ice-cream-owner-kid.png", tags: ["sweet", "shop"] },
+  { slug: "space-gardener-kid", name: "Space Gardener", file: "space-gardener-kid.png", tags: ["space", "nature"] },
+  { slug: "comic-hero-kid", name: "Comic Hero Kid", file: "comic-hero-kid.png", tags: ["hero", "comic"] },
+  { slug: "pyramid-archaeologist-kid", name: "Pyramid Explorer", file: "pyramid-archaeologist-kid.png", tags: ["ancient", "adventure"] },
+  { slug: "thunderstorm-surfer-kid", name: "Storm Sky-Surfer", file: "thunderstorm-surfer-kid.png", tags: ["weather", "action"] },
+  { slug: "dragon-egg-hatcher-kid", name: "Dragon Egg Hatcher", file: "dragon-egg-hatcher-kid.png", tags: ["dragon", "gentle"] },
+  { slug: "moon-bunny-pilot-kid", name: "Moon Bunny Pilot", file: "moon-bunny-pilot-kid.png", tags: ["space", "cute"] },
 ];
 
-// Sanity check: must be exactly 86 unique slugs.
-if (window.AVATAR_GALLERY.length !== 86) {
-  console.warn(`AVATAR_GALLERY expected 86 avatars, found ${window.AVATAR_GALLERY.length}`);
+// Sanity check: must be exactly 110 unique slugs.
+if (window.AVATAR_GALLERY.length !== 110) {
+  console.warn(`AVATAR_GALLERY expected 110 avatars, found ${window.AVATAR_GALLERY.length}`);
 }

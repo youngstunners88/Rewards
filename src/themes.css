@@ -1,0 +1,80 @@
+/* themes.css — selectable looks for Rewards.
+ *
+ * Borrowed from how Astryx (astryx.atmeta.com) does theming: a theme is just
+ * a set of CSS custom properties, so the whole app re-skins without touching
+ * any component code. Only the variables below change between themes.
+ * Original palettes — inspired by the *idea* of Astryx's Butter / Matcha /
+ * Y2K themes, not copied from them.
+ *
+ * Applied via <html data-theme="butter|matcha|y2k|midnight">. The default
+ * (no attribute) is the original sunny look defined in style.css :root.
+ */
+
+:root {
+  /* New tokens shared by every theme (the defaults reproduce today's look). */
+  --surface-2:   #fff8ef;      /* tinted panel / chip background */
+  --ink-soft:    #555;         /* secondary text */
+  --ink-faint:   #888;         /* tertiary text */
+  --line:        rgba(0,0,0,0.10);
+  --accent-ink:  #ffffff;      /* text on --accent */
+  --good-ink:    #04382a;      /* text on --good */
+  --card-glow:   rgba(255,107,107,0.35);
+  --gold:        #f5b301;
+  --silver:      #aab4c0;
+  --bronze:      #cd7f32;
+  --bg-a:        #ffe5b4;      /* three drifting background washes */
+  --bg-b:        #bde0fe;
+  --bg-c:        #ffe0f0;
+  --btn-shine:   linear-gradient(180deg, rgba(255,255,255,0.45), rgba(255,255,255,0) 55%);
+  --btn-depth:   0 4px 0 rgba(0,0,0,0.18);
+  --card-border: 2px solid rgba(255,255,255,0.0);
+}
+
+/* ---------- Butter: warm, cosy, creamy ---------- */
+:root[data-theme="butter"] {
+  --bg: #fff6d6; --ink: #3b2f1a; --card: #fffdf5; --surface-2: #fff0b8;
+  --accent: #e8913a; --accent-2: #f2c14e; --accent-3: #ffd97a;
+  --good: #7bb661; --good-ink: #17310c; --sad: #9c8f7a;
+  --ink-soft: #6b5a3a; --ink-faint: #9a8864; --line: rgba(90,60,10,0.14);
+  --card-glow: rgba(232,145,58,0.38);
+  --bg-a: #ffe9a8; --bg-b: #ffd8b0; --bg-c: #fff3c9;
+  --shadow: 0 6px 18px rgba(120,80,10,0.14);
+}
+
+/* ---------- Matcha: calm, fresh, green ---------- */
+:root[data-theme="matcha"] {
+  --bg: #eef6e6; --ink: #1f3324; --card: #fbfff7; --surface-2: #e1f0d3;
+  --accent: #4f9d69; --accent-2: #9ccc65; --accent-3: #c5e1a5;
+  --good: #2e9e6b; --good-ink: #ffffff; --sad: #7d8a80;
+  --ink-soft: #445c4a; --ink-faint: #7b9181; --line: rgba(30,70,40,0.14);
+  --card-glow: rgba(79,157,105,0.38);
+  --bg-a: #d9efc2; --bg-b: #c8ecdc; --bg-c: #f0f7d8;
+  --shadow: 0 6px 18px rgba(30,70,40,0.14);
+}
+
+/* ---------- Y2K: glossy, bubbly, candy-bright ---------- */
+:root[data-theme="y2k"] {
+  --bg: #f3e8ff; --ink: #2b1647; --card: #ffffff; --surface-2: #efe0ff;
+  --accent: #ff4fa3; --accent-2: #3fd6ff; --accent-3: #ffe14d;
+  --good: #35e0a1; --good-ink: #053b2a; --sad: #8f86a6;
+  --ink-soft: #5b4a80; --ink-faint: #9486b3; --line: rgba(80,40,140,0.16);
+  --card-glow: rgba(255,79,163,0.45);
+  --bg-a: #ffc6e8; --bg-b: #b8ecff; --bg-c: #e3d0ff;
+  --shadow: 0 8px 22px rgba(120,40,200,0.18);
+  --radius: 24px;
+  --btn-shine: linear-gradient(180deg, rgba(255,255,255,0.7), rgba(255,255,255,0) 60%);
+  --card-border: 2px solid rgba(255,255,255,0.9);
+}
+
+/* ---------- Midnight: dark mode that still feels playful ---------- */
+:root[data-theme="midnight"] {
+  --bg: #12122b; --ink: #f2f0ff; --card: #1f1f45; --surface-2: #2a2a5a;
+  --accent: #ff7a90; --accent-2: #5ee7df; --accent-3: #ffd166;
+  --accent-ink: #1b0b14;
+  --good: #3ddc97; --good-ink: #05281a; --sad: #8a8fb0;
+  --ink-soft: #c3c0ea; --ink-faint: #8e8ac0; --line: rgba(255,255,255,0.14);
+  --card-glow: rgba(255,122,144,0.5);
+  --bg-a: #2b2466; --bg-b: #123a63; --bg-c: #3b1d5c;
+  --shadow: 0 8px 22px rgba(0,0,0,0.45);
+  --btn-depth: 0 4px 0 rgba(0,0,0,0.45);
+}

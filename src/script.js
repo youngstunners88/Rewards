@@ -559,6 +559,56 @@ function fireReaction(kind, amount, studentId, ctx) {
    congratulations banner. Works no matter which action pushed them over
    the line (reward buttons, check-in points, or a test score), and no
    matter which day's bucket the points landed in. */
+/* ---------- Avatar rarity & unlocks ----------
+   Tiers (avatars.js): common 0 / rare 100 / epic 250 / legendary 500 all-time
+   points. A student's CURRENT avatar is always kept, even if it is above their
+   tier (older picks are grandfathered). Unlock announcements are remembered
+   per student so a tier is celebrated once, not every time points change. */
+const LS_UNLOCKS = "rewards.avatarUnlocks.v1"; // { studentId: highestTierIdAnnounced }
+function loadUnlocks() { try { return JSON.parse(localStorage.getItem(LS_UNLOCKS) || "{}"); } catch { return {}; } }
+function saveUnlocks(o) { localStorage.setItem(LS_UNLOCKS, JSON.stringify(o)); }
+function tierRank(id) { return (window.AVATAR_TIERS || []).findIndex(t => t.id === id); }
+function tierForPoints(points) {
+  let best = (window.AVATAR_TIERS || [{ id: "common" }])[0];
+  for (const t of window.AVATAR_TIERS || []) if (points >= t.min) best = t;
+  return best;
+}
+function isAvatarUnlockedFor(studentId, avatar) {
+  if (avatarSlugForStudent(studentId) === avatar.slug) return true; // grandfathered
+  const need = window.avatarTierInfo(window.avatarRarity(avatar));
+  return totalScoreFor(studentId) >= need.min;
+}
+function pointsToUnlock(studentId, avatar) {
+  const need = window.avatarTierInfo(window.avatarRarity(avatar));
+  return Math.max(0, need.min - totalScoreFor(studentId));
+}
+/* Call after points are added. Returns the newly reached tier (or null) and
+   remembers it so it is only announced once. */
+function checkAvatarUnlock(studentId) {
+  const reached = tierForPoints(totalScoreFor(studentId));
+  const seen = loadUnlocks();
+  const before = tierRank(seen[studentId] || "common");
+  if (tierRank(reached.id) > before) {
+    seen[studentId] = reached.id;
+    saveUnlocks(seen);
+    return reached.id === "common" ? null : reached;
+  }
+  return null;
+}
+function celebrateAvatarUnlock(studentId, tier) {
+  const student = allStudentsRaw().find(s => s.id === studentId);
+  const n = (window.AVATAR_GALLERY || []).filter(a => window.avatarRarity(a) === tier.id).length;
+  const banner = document.createElement("div");
+  banner.className = "unlock-banner unlock-" + tier.id;
+  banner.innerHTML = `<div class="unlock-icon">${tier.icon}</div>
+    <div><div class="unlock-title">${tier.label} avatars unlocked!</div>
+    <div class="unlock-sub">${student ? student.name : "Student"} can now choose from ${n} new ${tier.label.toLowerCase()} characters</div></div>`;
+  banner.addEventListener("click", () => banner.remove());
+  document.body.appendChild(banner);
+  setTimeout(() => banner.classList.add("leaving"), 4600);
+  setTimeout(() => banner.remove(), 5200);
+}
+
 function crossedMilestone(beforeTotal, afterTotal) {
   if (afterTotal <= beforeTotal) return null;
   const beforeTier = Math.floor(beforeTotal / 100);
@@ -568,6 +618,9 @@ function crossedMilestone(beforeTotal, afterTotal) {
 }
 function maybeCelebrateMilestone(studentId, beforeTotal) {
   const afterTotal = totalScoreFor(studentId);
+  maybeAnnounceGoal();
+  const unlocked = checkAvatarUnlock(studentId);
+  if (unlocked) setTimeout(() => celebrateAvatarUnlock(studentId, unlocked), 1400);
   const milestone = crossedMilestone(beforeTotal, afterTotal);
   if (!milestone) return;
   const student = allStudentsRaw().find(s => s.id === studentId);
@@ -759,34 +812,57 @@ function openAvatarPicker(studentId) {
   modal.appendChild(el("p", "help",
     "Tap an avatar to claim it. Once picked, it's locked for this student and unavailable to every other student in every class until it's freed."));
 
-  const grid = el("div", "avatar-picker-grid");
-  AVATAR_GALLERY.forEach(a => {
-    const takenBy = avatarTakenBy(a.slug);
-    const isMine = takenBy === studentId;
-    const isTaken = takenBy && !isMine;
-    const item = document.createElement("button");
-    item.type = "button";
-    item.className = "avatar-picker-item" + (isMine ? " selected" : "") + (isTaken ? " taken" : "");
-    item.disabled = !!isTaken;
-    const takenName = isTaken
-      ? (allStudentsRaw().find(s => s.id === takenBy)?.name || "another student")
-      : "";
-    item.innerHTML = `
-      <img src="./assets/images/avatars/${a.file}" alt="${a.name}" loading="lazy" />
-      <span class="avatar-picker-name">${a.name}</span>
-      ${isTaken ? `<span class="avatar-picker-taken-badge">Taken${takenName ? " · " + takenName : ""}</span>` : ""}
-      ${isMine ? `<span class="avatar-picker-mine-badge">✓ Current</span>` : ""}
-    `;
-    item.addEventListener("click", () => {
-      if (isTaken) return;
-      const ok = claimAvatar(studentId, a.slug);
-      if (!ok) { alert("That avatar was just taken by someone else — pick another!"); refreshGrid(); return; }
-      closeModal();
-      render();
+  const myPts = totalScoreFor(studentId);
+  const myTier = tierForPoints(myPts);
+  modal.appendChild(el("p", "picker-status",
+    `${student.name} has ${myPts} points · ${myTier.label} tier` +
+    (tierRank(myTier.id) < (window.AVATAR_TIERS || []).length - 1
+      ? ` · ${window.AVATAR_TIERS[tierRank(myTier.id) + 1].min - myPts} more points for ${window.AVATAR_TIERS[tierRank(myTier.id) + 1].label}`
+      : " · all tiers unlocked!")));
+
+  const wrapAll = el("div", "avatar-tier-groups");
+  (window.AVATAR_TIERS || []).slice().reverse().forEach(tier => {
+    const inTier = AVATAR_GALLERY.filter(a => window.avatarRarity(a) === tier.id);
+    if (!inTier.length) return;
+    const open = myPts >= tier.min;
+    const head = el("h3", "tier-head tier-" + tier.id);
+    head.innerHTML = `<span class="tier-icon">${tier.icon}</span> ${tier.label}
+      <span class="tier-count">${inTier.length}</span>
+      ${open ? "" : `<span class="tier-lock">🔒 unlocks at ${tier.min} points</span>`}`;
+    wrapAll.appendChild(head);
+    const grid = el("div", "avatar-picker-grid");
+    inTier.forEach(a => {
+      const takenBy = avatarTakenBy(a.slug);
+      const isMine = takenBy === studentId;
+      const isTaken = takenBy && !isMine;
+      const locked = !isAvatarUnlockedFor(studentId, a);
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "avatar-picker-item rarity-" + tier.id + (isMine ? " selected" : "") + (isTaken ? " taken" : "") + (locked ? " locked" : "");
+      item.disabled = !!isTaken || locked;
+      item.setAttribute("aria-label", locked ? `${a.name}, locked, ${pointsToUnlock(studentId, a)} more points` : a.name);
+      const takenName = isTaken
+        ? (allStudentsRaw().find(s => s.id === takenBy)?.name || "another student")
+        : "";
+      item.innerHTML = `
+        <img src="./assets/images/avatars/${a.file}" alt="${a.name}" loading="lazy" />
+        <span class="avatar-picker-name">${a.name}</span>
+        ${locked ? `<span class="avatar-lock">🔒<small>${pointsToUnlock(studentId, a)} pts</small></span>` : ""}
+        ${isTaken ? `<span class="avatar-picker-taken-badge">Taken${takenName ? " · " + takenName : ""}</span>` : ""}
+        ${isMine ? `<span class="avatar-picker-mine-badge">✓ Current</span>` : ""}
+      `;
+      item.addEventListener("click", () => {
+        if (isTaken || locked) return;
+        const ok = claimAvatar(studentId, a.slug);
+        if (!ok) { alert("That avatar was just taken by someone else — pick another!"); refreshGrid(); return; }
+        closeModal();
+        render();
+      });
+      grid.appendChild(item);
     });
-    grid.appendChild(item);
+    wrapAll.appendChild(grid);
   });
-  modal.appendChild(grid);
+  modal.appendChild(wrapAll);
 
   function refreshGrid() {
     closeModal();
@@ -1761,6 +1837,199 @@ function renderDayDetail(container, key, dayBag, students) {
 }
 
 /* ---------- Top bar wiring ---------- */
+/* ---------- Class goal meter ----------
+   The whole class fills one shared bar. Stored per class (rewards.<class>.goal)
+   so it never leaks between classes and syncs with the rest of the data.
+   progress = (class all-time points) - baseline, where baseline is the class
+   total when the current round started. Using a baseline (not a running
+   counter) means undoing points or removing a student can never desync it. */
+const GOAL_REWARDS = [
+  { icon: "💃", label: "Dance break" },
+  { icon: "🎮", label: "Game time" },
+  { icon: "🎨", label: "Free drawing" },
+  { icon: "🪑", label: "Sit anywhere" },
+  { icon: "🎵", label: "Pick the song" },
+  { icon: "🏆", label: "Teacher's choice" },
+];
+const DEFAULT_GOAL = { target: 50, reward: "💃 Dance break", baseline: 0, rounds: 0, announced: false };
+function classTotalPoints() {
+  let t = 0;
+  for (const day of Object.keys(state.dayScores)) t += sumPts(state.dayScores[day]);
+  return t;
+}
+function loadGoal() {
+  let g = {};
+  try { g = JSON.parse(localStorage.getItem(classKey("goal")) || "{}"); } catch { g = {}; }
+  // Cloud sync merges numbers with MAX and can't tell which device edited last,
+  // so settings are stored as a list of versions ("cfg": {"<n>": {target,reward}}).
+  // The highest version wins as a whole, which makes lowering a target stick.
+  const cfg = g.cfg && typeof g.cfg === "object" ? g.cfg : {};
+  const versions = Object.keys(cfg).map(Number).filter(Number.isFinite).sort((a, b) => a - b);
+  // Each version is ONE string ("<target>|<reward>"): sync merges objects field
+  // by field, which could splice two simultaneous edits together. A single
+  // string is taken whole.
+  const raw = versions.length ? cfg[String(versions[versions.length - 1])] : "";
+  const cut = typeof raw === "string" ? raw.indexOf("|") : -1;
+  const latest = cut > 0 ? { target: Number(raw.slice(0, cut)), reward: raw.slice(cut + 1) } : {};
+  const out = Object.assign({}, DEFAULT_GOAL, latest);
+  out.cfgVersion = versions.length ? versions[versions.length - 1] : 0;
+  out.target = Math.max(5, Math.round(Number(out.target) || DEFAULT_GOAL.target));
+  out.baseline = Math.max(0, Number(g.baseline) || 0);
+  out.rounds = Math.max(0, Number(g.rounds) || 0);
+  out.announced = !!g.announced;
+  out._cfg = cfg;
+  return out;
+}
+function saveGoal(g, settingsChanged) {
+  const cfg = Object.assign({}, g._cfg || {});
+  let ver = g.cfgVersion || 0;
+  if (settingsChanged || !Object.keys(cfg).length) {
+    ver = Math.max(ver, ...Object.keys(cfg).map(Number).filter(Number.isFinite), 0) + 1;
+    cfg[String(ver)] = `${g.target}|${g.reward}`;
+  }
+  localStorage.setItem(classKey("goal"), JSON.stringify({
+    baseline: g.baseline, rounds: g.rounds, announced: !!g.announced, cfg,
+  }));
+}
+function goalProgress(g) {
+  const earned = Math.max(0, classTotalPoints() - g.baseline);
+  return { earned, pct: Math.min(100, Math.round((earned / g.target) * 100)), done: earned >= g.target };
+}
+
+function renderGoalMeter() {
+  const host = document.getElementById("goal-meter");
+  if (!host) return;
+  const g = loadGoal();
+  const pr = goalProgress(g);
+  const cls = CLASSES.find(c => c.id === activeClassId());
+  const left = Math.max(0, g.target - pr.earned);
+  host.className = "goal-meter" + (pr.done ? " goal-done" : "");
+  host.setAttribute("aria-label", "Class goal");
+  host.innerHTML = `
+    <div class="goal-top">
+      <div class="goal-title">🎯 ${cls ? cls.label : "Class"} goal: <strong>${g.reward}</strong></div>
+      <button type="button" class="goal-edit" aria-label="Edit class goal">⚙</button>
+    </div>
+    <div class="goal-track" role="progressbar" aria-valuemin="0" aria-valuemax="${g.target}" aria-valuenow="${Math.min(pr.earned, g.target)}" aria-label="Class goal progress">
+      <div class="goal-fill" style="width:${pr.pct}%"></div>
+      <div class="goal-marks">${[25, 50, 75].map(m => `<i class="${pr.pct >= m ? "hit" : ""}" style="left:${m}%"></i>`).join("")}</div>
+      <div class="goal-text">${Math.min(pr.earned, g.target)} / ${g.target}</div>
+    </div>
+    <div class="goal-sub">${pr.done
+      ? `<button type="button" class="btn btn-primary goal-claim">🎉 Goal reached! Celebrate ${g.reward}</button>`
+      : `${left} more point${left === 1 ? "" : "s"} to go${g.rounds ? ` · ${g.rounds} goal${g.rounds === 1 ? "" : "s"} won so far` : ""}`}</div>`;
+  host.querySelector(".goal-edit").addEventListener("click", openGoalSettings);
+  const claim = host.querySelector(".goal-claim");
+  if (claim) claim.addEventListener("click", () => completeGoal());
+}
+
+/* Celebrate once per round, then start the next round from the current total. */
+function completeGoal() {
+  const g = loadGoal();
+  const pr = goalProgress(g);
+  if (!pr.done) return;
+  const back = el("div", "modal-backdrop goal-celebrate");
+  const modal = el("div", "modal goal-modal");
+  modal.innerHTML = `<div class="goal-big">${(g.reward.match(/^\S+/) || ["🎉"])[0]}</div>
+    <h2>${g.reward.replace(/^\S+\s*/, "") || "Reward"}!</h2>
+    <p class="help">The whole class did it together — ${g.target} points! Everyone gets to enjoy it.</p>`;
+  const row = el("div", "row");
+  row.appendChild(button("Start the next goal", "btn btn-primary", () => {
+    const next = loadGoal();
+    next.baseline = classTotalPoints();
+    next.rounds = (next.rounds || 0) + 1;
+    next.announced = false;
+    saveGoal(next);
+    closeModal();
+    renderGoalMeter();
+  }));
+  row.appendChild(button("Not yet", "btn btn-settings", closeModal));
+  modal.appendChild(row);
+  back.appendChild(modal);
+  document.body.appendChild(back);
+  if (window.Reactions && window.Reactions.playMilestone) {
+    try { window.Reactions.playMilestone("Class", g.target, null); } catch (e) { /* cosmetic only */ }
+  }
+  fireConfettiBurst();
+}
+function fireConfettiBurst() {
+  const glyphs = ["🎉", "⭐", "✨", "🎊", "💫"];
+  for (let i = 0; i < 40; i++) {
+    const c = document.createElement("span");
+    c.className = "goal-confetti";
+    c.textContent = glyphs[i % glyphs.length];
+    c.style.left = Math.round(Math.random() * 100) + "vw";
+    c.style.setProperty("--d", Math.round(Math.random() * 600) + "ms");
+    c.style.setProperty("--x", Math.round(Math.random() * 120 - 60) + "px");
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 2600);
+  }
+}
+
+/* Goal announcement when a reward pushes the bar over the line. */
+function maybeAnnounceGoal() {
+  const g = loadGoal();
+  const pr = goalProgress(g);
+  if (pr.done && !g.announced) {
+    g.announced = true; // auto-popup once per round; the meter button stays available after
+    saveGoal(g);
+    setTimeout(() => completeGoal(), 2200);
+  }
+}
+
+function openGoalSettings() {
+  const g = loadGoal();
+  const back = el("div", "modal-backdrop");
+  const modal = el("div", "modal");
+  modal.appendChild(el("h2", null, "🎯 Class goal"));
+  modal.appendChild(el("p", "help", "Set a points target and a reward. The whole class fills the bar together."));
+  const t = document.createElement("input");
+  t.type = "number"; t.min = "5"; t.max = "1000"; t.step = "5"; t.value = String(g.target);
+  t.className = "goal-input"; t.setAttribute("aria-label", "Points target");
+  const lt = el("label", "goal-label", "Points to reach"); lt.appendChild(t);
+  modal.appendChild(lt);
+  modal.appendChild(el("div", "goal-label", "Reward"));
+  const chips = el("div", "goal-chips");
+  let chosen = g.reward;
+  const custom = document.createElement("input");
+  custom.type = "text"; custom.maxLength = 30; custom.placeholder = "…or type your own";
+  custom.className = "goal-input"; custom.setAttribute("aria-label", "Custom reward");
+  const mark = () => chips.querySelectorAll("button").forEach(b => b.classList.toggle("active", b.dataset.v === chosen));
+  GOAL_REWARDS.forEach(r => {
+    const v = `${r.icon} ${r.label}`;
+    const b = el("button", "goal-chip", v); b.type = "button"; b.dataset.v = v;
+    b.addEventListener("click", () => { chosen = v; custom.value = ""; mark(); });
+    chips.appendChild(b);
+  });
+  modal.appendChild(chips); modal.appendChild(custom); mark();
+  const row = el("div", "row");
+  row.appendChild(button("Save", "btn btn-primary", () => {
+    const next = loadGoal();
+    next.target = Math.max(5, Math.min(1000, Math.round(Number(t.value) || next.target)));
+    const c = custom.value.trim();
+    next.reward = c ? `🎁 ${c}` : chosen;
+    next.announced = false;
+    saveGoal(next, true);
+    closeModal();
+    renderGoalMeter();
+    maybeAnnounceGoal();
+  }));
+  row.appendChild(button("Restart bar", "btn btn-remove", () => {
+    if (!confirm("Restart the bar from zero for this class?")) return;
+    const next = loadGoal();
+    next.baseline = classTotalPoints();
+    next.announced = false;
+    saveGoal(next);
+    closeModal();
+    renderGoalMeter();
+  }));
+  row.appendChild(button("Close", "btn btn-settings", closeModal));
+  modal.appendChild(row);
+  back.appendChild(modal);
+  back.addEventListener("click", (e) => { if (e.target === back) closeModal(); });
+  document.body.appendChild(back);
+}
+
 function renderTodayLabel() {
   const el = document.getElementById("today-label");
   if (!el) return;
@@ -1856,6 +2125,7 @@ function render() {
   renderRoster();
   renderLeaderboard();
   renderTestScores();
+  renderGoalMeter();
   updateButtonStates();
   renderTodayLabel();
   // Keep the leaderboard toggle's label in sync with the saved scope.

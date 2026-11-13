@@ -35,7 +35,38 @@
     "youre-on-a-streak.mp3",
     "thats-better.mp3",
     "i-knew-you-could.mp3",
-    "back-on-track.mp3"
+    "back-on-track.mp3",
+    "way-to-go-m.mp3",
+    "well-done-m.mp3",
+    "thumbs-up-m.mp3",
+    "keep-going-m.mp3",
+    "so-good-m.mp3",
+    "you-got-it-m.mp3",
+    "fantastic-m.mp3",
+    "brilliant-m.mp3",
+    "high-five-m.mp3",
+    "super-duper-m.mp3",
+    "proud-of-you-m.mp3",
+    "look-at-you-go-m.mp3",
+    "you-did-it-m.mp3",
+    "boom-nailed-it-m.mp3",
+    "superstar-m.mp3",
+    "wow-great-job-m.mp3",
+    "thats-amazing-m.mp3",
+    "wonderful-m.mp3",
+    "incredible-m.mp3",
+    "youre-on-fire-m.mp3",
+    "absolutely-amazing-m.mp3",
+    "champion-m.mp3",
+    "unstoppable-m.mp3",
+    "best-ever-m.mp3",
+    "on-a-roll-m.mp3",
+    "again-amazing-m.mp3",
+    "keep-it-up-m.mp3",
+    "youre-on-a-streak-m.mp3",
+    "thats-better-m.mp3",
+    "i-knew-you-could-m.mp3",
+    "back-on-track-m.mp3"
   ],
   "discipline": [
     "oh-oh.mp3",
@@ -45,7 +76,13 @@
     "you-can-do-it.mp3",
     "listen-up-friends.mp3",
     "lets-be-kind.mp3",
-    "oops-thats-okay.mp3"
+    "oops-thats-okay.mp3",
+    "lets-try-again-m.mp3",
+    "take-a-breath-m.mp3",
+    "you-can-do-it-m.mp3",
+    "listen-up-friends-m.mp3",
+    "lets-be-kind-m.mp3",
+    "oops-thats-okay-m.mp3"
   ],
   "tier1": [
     "way-to-go.mp3",
@@ -53,7 +90,13 @@
     "thumbs-up.mp3",
     "keep-going.mp3",
     "so-good.mp3",
-    "you-got-it.mp3"
+    "you-got-it.mp3",
+    "way-to-go-m.mp3",
+    "well-done-m.mp3",
+    "thumbs-up-m.mp3",
+    "keep-going-m.mp3",
+    "so-good-m.mp3",
+    "you-got-it-m.mp3"
   ],
   "tier2": [
     "fantastic.mp3",
@@ -61,7 +104,13 @@
     "high-five.mp3",
     "super-duper.mp3",
     "proud-of-you.mp3",
-    "look-at-you-go.mp3"
+    "look-at-you-go.mp3",
+    "fantastic-m.mp3",
+    "brilliant-m.mp3",
+    "high-five-m.mp3",
+    "super-duper-m.mp3",
+    "proud-of-you-m.mp3",
+    "look-at-you-go-m.mp3"
   ],
   "tier3": [
     "you-did-it.mp3",
@@ -69,7 +118,13 @@
     "superstar.mp3",
     "wow-great-job.mp3",
     "thats-amazing.mp3",
-    "wonderful.mp3"
+    "wonderful.mp3",
+    "you-did-it-m.mp3",
+    "boom-nailed-it-m.mp3",
+    "superstar-m.mp3",
+    "wow-great-job-m.mp3",
+    "thats-amazing-m.mp3",
+    "wonderful-m.mp3"
   ],
   "tier5": [
     "incredible.mp3",
@@ -77,23 +132,40 @@
     "absolutely-amazing.mp3",
     "champion.mp3",
     "unstoppable.mp3",
-    "best-ever.mp3"
+    "best-ever.mp3",
+    "incredible-m.mp3",
+    "youre-on-fire-m.mp3",
+    "absolutely-amazing-m.mp3",
+    "champion-m.mp3",
+    "unstoppable-m.mp3",
+    "best-ever-m.mp3"
   ],
   "milestone": [
     "one-hundred-points-amazing.mp3",
     "one-hundred-points-superstar.mp3",
     "wow-one-hundred-points.mp3",
-    "one-hundred-points-high-five.mp3"
+    "one-hundred-points-high-five.mp3",
+    "one-hundred-points-amazing-m.mp3",
+    "one-hundred-points-superstar-m.mp3",
+    "wow-one-hundred-points-m.mp3",
+    "one-hundred-points-high-five-m.mp3"
   ],
   "streak": [
     "on-a-roll.mp3",
     "again-amazing.mp3",
     "keep-it-up.mp3",
-    "youre-on-a-streak.mp3"
+    "youre-on-a-streak.mp3",
+    "on-a-roll-m.mp3",
+    "again-amazing-m.mp3",
+    "keep-it-up-m.mp3",
+    "youre-on-a-streak-m.mp3"
   ],
   "comeback": [
     "thats-better.mp3",
     "i-knew-you-could.mp3",
-    "back-on-track.mp3"
+    "back-on-track.mp3",
+    "thats-better-m.mp3",
+    "i-knew-you-could-m.mp3",
+    "back-on-track-m.mp3"
   ]
 }

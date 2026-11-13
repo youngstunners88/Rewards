@@ -559,54 +559,190 @@ function fireReaction(kind, amount, studentId, ctx) {
    congratulations banner. Works no matter which action pushed them over
    the line (reward buttons, check-in points, or a test score), and no
    matter which day's bucket the points landed in. */
-/* ---------- Avatar rarity & unlocks ----------
-   Tiers (avatars.js): common 0 / rare 100 / epic 250 / legendary 500 all-time
-   points. A student's CURRENT avatar is always kept, even if it is above their
-   tier (older picks are grandfathered). Unlock announcements are remembered
-   per student so a tier is celebrated once, not every time points change. */
-const LS_UNLOCKS = "rewards.avatarUnlocks.v1"; // { studentId: highestTierIdAnnounced }
-function loadUnlocks() { try { return JSON.parse(localStorage.getItem(LS_UNLOCKS) || "{}"); } catch { return {}; } }
-function saveUnlocks(o) { localStorage.setItem(LS_UNLOCKS, JSON.stringify(o)); }
-function tierRank(id) { return (window.AVATAR_TIERS || []).findIndex(t => t.id === id); }
-function tierForPoints(points) {
-  let best = (window.AVATAR_TIERS || [{ id: "common" }])[0];
-  for (const t of window.AVATAR_TIERS || []) if (points >= t.min) best = t;
-  return best;
-}
-function isAvatarUnlockedFor(studentId, avatar) {
-  if (avatarSlugForStudent(studentId) === avatar.slug) return true; // grandfathered
-  const need = window.avatarTierInfo(window.avatarRarity(avatar));
-  return totalScoreFor(studentId) >= need.min;
-}
-function pointsToUnlock(studentId, avatar) {
-  const need = window.avatarTierInfo(window.avatarRarity(avatar));
-  return Math.max(0, need.min - totalScoreFor(studentId));
-}
-/* Call after points are added. Returns the newly reached tier (or null) and
-   remembers it so it is only announced once. */
-function checkAvatarUnlock(studentId) {
-  const reached = tierForPoints(totalScoreFor(studentId));
-  const seen = loadUnlocks();
-  const before = tierRank(seen[studentId] || "common");
-  if (tierRank(reached.id) > before) {
-    seen[studentId] = reached.id;
-    saveUnlocks(seen);
-    return reached.id === "common" ? null : reached;
+/* ---------- Magical pets (600-point prestige reward) ----------
+   A student who reaches PET_POINTS all-time points may claim ONE pet. Each
+   class has only PET_SLOTS pets in total, first come first served, so the
+   race is real. Claims live in rewards.<classId>.pets as
+   { studentId: "<petSlug>@<timestamp>" }.
+
+   Two devices can claim at the same moment and cloud sync would keep BOTH, so
+   the winner is never stored, it is derived: sort claims by timestamp (ties by
+   student id), a pet goes to the earliest claimant, and only the first
+   PET_SLOTS valid claims count. Every device computes the same answer. */
+const PET_POINTS = 600;
+const PET_SLOTS = 8;
+const PETS = [
+  { slug: "aurora-dragon",    name: "Aurora Dragon",    blurb: "Wings that shimmer like the northern lights" },
+  { slug: "star-fox",         name: "Star Fox",         blurb: "Nine tails tipped with tiny stars" },
+  { slug: "cloud-whale",      name: "Cloud Whale",      blurb: "A fluffy whale that floats on rainbows" },
+  { slug: "crystal-unicorn",  name: "Crystal Unicorn",  blurb: "Its horn splits light into colours" },
+  { slug: "ember-phoenix",    name: "Ember Phoenix",    blurb: "A warm little firebird that never fades" },
+  { slug: "moon-cat",         name: "Moon Cat",         blurb: "Galaxy fur and a crescent moon" },
+  { slug: "thunder-wolf-pup", name: "Thunder Wolf Pup", blurb: "Lightning sparks on its paws" },
+  { slug: "coral-seahorse",   name: "Coral Seahorse",   blurb: "A glowing crown of coral and pearls" },
+  { slug: "galaxy-turtle",    name: "Galaxy Turtle",    blurb: "A shell full of tiny spinning planets" },
+  { slug: "jelly-sprite",     name: "Jelly Sprite",     blurb: "Glows softly in every colour" },
+  { slug: "gem-griffin",      name: "Gem Griffin",      blurb: "Gold and emerald feathers" },
+  { slug: "frost-bunny",      name: "Frost Bunny",      blurb: "Snowflake ears and a sparkling trail" },
+];
+function loadPetClaims(classId) {
+  let raw = {};
+  try { raw = JSON.parse(localStorage.getItem(classKey("pets", classId)) || "{}"); } catch { raw = {}; }
+  const out = [];
+  for (const [studentId, v] of Object.entries(raw)) {
+    if (typeof v !== "string") continue;
+    const at = v.lastIndexOf("@");
+    const slug = at > 0 ? v.slice(0, at) : v;
+    const ts = at > 0 ? Number(v.slice(at + 1)) : 0;
+    if (PETS.some(p => p.slug === slug)) out.push({ studentId, slug, ts: Number.isFinite(ts) ? ts : 0 });
   }
-  return null;
+  return out;
 }
-function celebrateAvatarUnlock(studentId, tier) {
-  const student = allStudentsRaw().find(s => s.id === studentId);
-  const n = (window.AVATAR_GALLERY || []).filter(a => window.avatarRarity(a) === tier.id).length;
-  const banner = document.createElement("div");
-  banner.className = "unlock-banner unlock-" + tier.id;
-  banner.innerHTML = `<div class="unlock-icon">${tier.icon}</div>
-    <div><div class="unlock-title">${tier.label} avatars unlocked!</div>
-    <div class="unlock-sub">${student ? student.name : "Student"} can now choose from ${n} new ${tier.label.toLowerCase()} characters</div></div>`;
-  banner.addEventListener("click", () => banner.remove());
-  document.body.appendChild(banner);
-  setTimeout(() => banner.classList.add("leaving"), 4600);
-  setTimeout(() => banner.remove(), 5200);
+/* The authoritative result: who really owns which pet in this class. */
+function resolvePets(classId) {
+  const claims = loadPetClaims(classId).sort((a, b) => a.ts - b.ts || a.studentId.localeCompare(b.studentId));
+  const takenSlugs = new Set(), owners = {};
+  for (const c of claims) {
+    if (Object.keys(owners).length >= PET_SLOTS) break;   // class is full
+    if (takenSlugs.has(c.slug)) continue;                  // someone earlier owns this pet
+    takenSlugs.add(c.slug);
+    owners[c.studentId] = c.slug;
+  }
+  return { owners, takenSlugs, used: Object.keys(owners).length, left: Math.max(0, PET_SLOTS - Object.keys(owners).length) };
+}
+function petFor(studentId, classId) {
+  const slug = resolvePets(classId || activeClassId()).owners[studentId];
+  return slug ? PETS.find(p => p.slug === slug) : null;
+}
+function petImg(slug) { return `./assets/images/pets/${slug}.png`; }
+function studentClassId(studentId) {
+  const st = allStudentsRaw().find(s => s.id === studentId);
+  if (!st) return activeClassId();
+  const c = CLASSES.find(c => isStudentInClass(st, c));
+  return c ? c.id : activeClassId();
+}
+function canClaimPet(studentId) {
+  const cid = studentClassId(studentId);
+  const r = resolvePets(cid);
+  return totalScoreFor(studentId) >= PET_POINTS && !r.owners[studentId] && r.left > 0;
+}
+/* Called after points are added: offer the pet the moment 600 is crossed. */
+function maybeOfferPet(studentId, beforeTotal) {
+  const after = totalScoreFor(studentId);
+  if (!(beforeTotal < PET_POINTS && after >= PET_POINTS)) return;
+  if (!canClaimPet(studentId)) return;
+  setTimeout(() => openPetPicker(studentId, true), 1800);
+}
+function claimPet(studentId, slug) {
+  const cid = studentClassId(studentId);
+  const r = resolvePets(cid);
+  if (totalScoreFor(studentId) < PET_POINTS || r.owners[studentId] || r.left <= 0 || r.takenSlugs.has(slug)) return false;
+  let raw = {};
+  try { raw = JSON.parse(localStorage.getItem(classKey("pets", cid)) || "{}"); } catch { raw = {}; }
+  raw[studentId] = `${slug}@${Date.now()}`; // overwrites any lost/stale claim by this student
+  localStorage.setItem(classKey("pets", cid), JSON.stringify(raw));
+  return resolvePets(cid).owners[studentId] === slug;    // false if an earlier claim beat us after merge
+}
+/* If a claim recorded on another device loses the race after a sync, tell the
+   teacher plainly (once) instead of letting a pet silently vanish. */
+function noticeLostPetClaims() {
+  const cid = activeClassId();
+  const r = resolvePets(cid);
+  const lost = loadPetClaims(cid).filter(c => !r.owners[c.studentId]);
+  if (!lost.length) return;
+  const seenKey = "rewards.petLostSeen.v1";
+  let seen = {};
+  try { seen = JSON.parse(localStorage.getItem(seenKey) || "{}"); } catch { seen = {}; }
+  const fresh = lost.filter(c => !seen[cid + ":" + c.studentId + ":" + c.slug]);
+  if (!fresh.length) return;
+  fresh.forEach(c => { seen[cid + ":" + c.studentId + ":" + c.slug] = 1; });
+  localStorage.setItem(seenKey, JSON.stringify(seen));
+  const names = fresh.map(c => (allStudentsRaw().find(s => s.id === c.studentId) || { name: c.studentId }).name).join(", ");
+  setTimeout(() => alert(`Heads up: ${names} picked a pet on another device at the same time as a classmate, and the classmate got there first. ${names.includes(",") ? "They" : "They"} can choose a different pet if any are left.`), 600);
+}
+// A lost claim is "unclaimed" again, so the student may pick another pet.
+function playPetFanfare() {
+  try {
+    const a = new Audio("./assets/sounds/pet-claim.mp3");
+    a.volume = 1;
+    a.play().catch(() => {});
+  } catch (e) { /* sound is cosmetic */ }
+}
+function celebratePet(studentId, pet) {
+  const st = allStudentsRaw().find(s => s.id === studentId);
+  const back = el("div", "modal-backdrop pet-celebrate");
+  const modal = el("div", "modal pet-modal");
+  modal.innerHTML = `
+    <div class="pet-rays"></div>
+    <img class="pet-hero" src="${petImg(pet.slug)}" alt="${pet.name}" />
+    <h2>${st ? st.name : "Student"} won ${pet.name}!</h2>
+    <p class="help">${pet.blurb}. This pet belongs to ${st ? st.name : "them"} forever. 🎉</p>`;
+  const row = el("div", "row");
+  row.appendChild(button("Hooray!", "btn btn-primary", () => { closeModal(); render(); }));
+  modal.appendChild(row);
+  back.appendChild(modal);
+  document.body.appendChild(back);
+  playPetFanfare();
+  fireConfettiBurst();
+  setTimeout(fireConfettiBurst, 700);
+  setTimeout(fireConfettiBurst, 1500);
+}
+function openPetPicker(studentId, justUnlocked) {
+  const st = allStudentsRaw().find(s => s.id === studentId);
+  if (!st) return;
+  const cid = studentClassId(studentId);
+  const cls = CLASSES.find(c => c.id === cid);
+  const r = resolvePets(cid);
+  const mine = petFor(studentId, cid);
+  const pts = totalScoreFor(studentId);
+  const eligible = pts >= PET_POINTS;
+  const back = el("div", "modal-backdrop");
+  const modal = el("div", "modal modal-wide pet-picker");
+  modal.appendChild(el("h2", null, mine ? `🐾 ${st.name}'s pet` : `🐾 Magical pets · ${cls ? cls.label : ""}`));
+  if (mine) {
+    modal.appendChild(el("p", "picker-status", `${st.name} owns ${mine.name}. Only ${PET_SLOTS} pets exist in this class.`));
+  } else if (!eligible) {
+    modal.appendChild(el("p", "picker-status",
+      `${st.name} has ${pts} points. Reach ${PET_POINTS} (${PET_POINTS - pts} to go) to win a magical pet! Only ${r.left} of ${PET_SLOTS} are left in this class.`));
+  } else if (r.left <= 0) {
+    modal.appendChild(el("p", "picker-status", `All ${PET_SLOTS} pets in this class have been claimed. Great effort!`));
+  } else {
+    modal.appendChild(el("p", "picker-status pet-hurry",
+      `${justUnlocked ? "🎉 600 points! " : ""}Choose ONE magical pet. Only ${r.left} of ${PET_SLOTS} are left in this class, and each can only belong to one student!`));
+  }
+  const grid = el("div", "pet-grid");
+  PETS.forEach(pet => {
+    const ownerId = Object.keys(r.owners).find(id => r.owners[id] === pet.slug);
+    const owner = ownerId ? allStudentsRaw().find(s => s.id === ownerId) : null;
+    const isMine = ownerId === studentId;
+    const full = !ownerId && r.left <= 0;
+    const canPick = eligible && !mine && !ownerId && r.left > 0;
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "pet-card" + (ownerId ? " claimed" : "") + (isMine ? " mine" : "") + (canPick ? " pickable" : "");
+    card.disabled = !canPick;
+    card.setAttribute("aria-label", `${pet.name}. ${ownerId ? "Owned by " + (owner ? owner.name : "a classmate") : full ? "no pets left" : canPick ? "choose this pet" : "locked until 600 points"}`);
+    card.innerHTML = `
+      <img src="${petImg(pet.slug)}" alt="" loading="lazy" />
+      <span class="pet-name">${pet.name}</span>
+      <span class="pet-blurb">${pet.blurb}</span>
+      ${ownerId ? `<span class="pet-owner">${isMine ? "✓ Yours" : "Owned by " + (owner ? owner.name : "a classmate")}</span>`
+                : (!eligible ? `<span class="pet-lock">🔒 ${PET_POINTS} pts</span>` : "")}`;
+    card.addEventListener("click", () => {
+      if (!canPick) return;
+      if (!confirm(`Choose ${pet.name}? Each student can only pick one pet, and it can't be changed.`)) return;
+      if (claimPet(studentId, pet.slug)) { closeModal(); render(); celebratePet(studentId, pet); }
+      else { alert("Oh no, someone just took that one! Choose another."); closeModal(); openPetPicker(studentId, false); }
+    });
+    grid.appendChild(card);
+  });
+  modal.appendChild(grid);
+  const row = el("div", "row");
+  row.appendChild(button("Close", "btn btn-settings", closeModal));
+  modal.appendChild(row);
+  back.appendChild(modal);
+  back.addEventListener("click", (e) => { if (e.target === back) closeModal(); });
+  document.body.appendChild(back);
 }
 
 function crossedMilestone(beforeTotal, afterTotal) {
@@ -618,9 +754,11 @@ function crossedMilestone(beforeTotal, afterTotal) {
 }
 function maybeCelebrateMilestone(studentId, beforeTotal) {
   const afterTotal = totalScoreFor(studentId);
-  maybeAnnounceGoal();
-  const unlocked = checkAvatarUnlock(studentId);
-  if (unlocked) setTimeout(() => celebrateAvatarUnlock(studentId, unlocked), 1400);
+  // Only this student's total changed, so the class total BEFORE the award is
+  // simply the class total now minus what this student just gained.
+  const classBefore = classTotalPoints() - (afterTotal - beforeTotal);
+  maybeAnnounceGoal(classBefore);
+  maybeOfferPet(studentId, beforeTotal);
   const milestone = crossedMilestone(beforeTotal, afterTotal);
   if (!milestone) return;
   const student = allStudentsRaw().find(s => s.id === studentId);
@@ -812,57 +950,32 @@ function openAvatarPicker(studentId) {
   modal.appendChild(el("p", "help",
     "Tap an avatar to claim it. Once picked, it's locked for this student and unavailable to every other student in every class until it's freed."));
 
-  const myPts = totalScoreFor(studentId);
-  const myTier = tierForPoints(myPts);
-  modal.appendChild(el("p", "picker-status",
-    `${student.name} has ${myPts} points · ${myTier.label} tier` +
-    (tierRank(myTier.id) < (window.AVATAR_TIERS || []).length - 1
-      ? ` · ${window.AVATAR_TIERS[tierRank(myTier.id) + 1].min - myPts} more points for ${window.AVATAR_TIERS[tierRank(myTier.id) + 1].label}`
-      : " · all tiers unlocked!")));
-
-  const wrapAll = el("div", "avatar-tier-groups");
-  (window.AVATAR_TIERS || []).slice().reverse().forEach(tier => {
-    const inTier = AVATAR_GALLERY.filter(a => window.avatarRarity(a) === tier.id);
-    if (!inTier.length) return;
-    const open = myPts >= tier.min;
-    const head = el("h3", "tier-head tier-" + tier.id);
-    head.innerHTML = `<span class="tier-icon">${tier.icon}</span> ${tier.label}
-      <span class="tier-count">${inTier.length}</span>
-      ${open ? "" : `<span class="tier-lock">🔒 unlocks at ${tier.min} points</span>`}`;
-    wrapAll.appendChild(head);
-    const grid = el("div", "avatar-picker-grid");
-    inTier.forEach(a => {
-      const takenBy = avatarTakenBy(a.slug);
-      const isMine = takenBy === studentId;
-      const isTaken = takenBy && !isMine;
-      const locked = !isAvatarUnlockedFor(studentId, a);
-      const item = document.createElement("button");
-      item.type = "button";
-      item.className = "avatar-picker-item rarity-" + tier.id + (isMine ? " selected" : "") + (isTaken ? " taken" : "") + (locked ? " locked" : "");
-      item.disabled = !!isTaken || locked;
-      item.setAttribute("aria-label", locked ? `${a.name}, locked, ${pointsToUnlock(studentId, a)} more points` : a.name);
-      const takenName = isTaken
-        ? (allStudentsRaw().find(s => s.id === takenBy)?.name || "another student")
-        : "";
-      item.innerHTML = `
-        <img src="./assets/images/avatars/${a.file}" alt="${a.name}" loading="lazy" />
-        <span class="avatar-picker-name">${a.name}</span>
-        ${locked ? `<span class="avatar-lock">🔒<small>${pointsToUnlock(studentId, a)} pts</small></span>` : ""}
-        ${isTaken ? `<span class="avatar-picker-taken-badge">Taken${takenName ? " · " + takenName : ""}</span>` : ""}
-        ${isMine ? `<span class="avatar-picker-mine-badge">✓ Current</span>` : ""}
-      `;
-      item.addEventListener("click", () => {
-        if (isTaken || locked) return;
-        const ok = claimAvatar(studentId, a.slug);
-        if (!ok) { alert("That avatar was just taken by someone else — pick another!"); refreshGrid(); return; }
-        closeModal();
-        render();
-      });
-      grid.appendChild(item);
+  const grid = el("div", "avatar-picker-grid");
+  AVATAR_GALLERY.forEach(a => {
+    const takenBy = avatarTakenBy(a.slug);
+    const isMine = takenBy === studentId;
+    const isTaken = takenBy && !isMine;
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "avatar-picker-item" + (isMine ? " selected" : "") + (isTaken ? " taken" : "");
+    item.disabled = !!isTaken;
+    item.setAttribute("aria-label", a.name);
+    const takenName = isTaken ? (allStudentsRaw().find(s => s.id === takenBy)?.name || "another student") : "";
+    item.innerHTML = `
+      <img src="./assets/images/avatars/${a.file}" alt="${a.name}" loading="lazy" />
+      <span class="avatar-picker-name">${a.name}</span>
+      ${isTaken ? `<span class="avatar-picker-taken-badge">Taken${takenName ? " · " + takenName : ""}</span>` : ""}
+      ${isMine ? `<span class="avatar-picker-mine-badge">✓ Current</span>` : ""}`;
+    item.addEventListener("click", () => {
+      if (isTaken) return;
+      const ok = claimAvatar(studentId, a.slug);
+      if (!ok) { alert("That avatar was just taken by someone else — pick another!"); return; }
+      closeModal();
+      render();
     });
-    wrapAll.appendChild(grid);
+    grid.appendChild(item);
   });
-  modal.appendChild(wrapAll);
+  modal.appendChild(grid);
 
   function refreshGrid() {
     closeModal();
@@ -952,6 +1065,7 @@ function openStudentDetail(studentId) {
   }
 
   const row = el("div", "row");
+  row.appendChild(button(petFor(studentId) ? "🐾 View pet" : "🐾 Pets", "btn btn-settings", () => { closeModal(); openPetPicker(studentId, false); }));
   if (state.sad[studentId]) {
     row.appendChild(button("☺ Clear sad face", "btn btn-settings", () => {
       clearSad(studentId);
@@ -1506,6 +1620,8 @@ function renderRoster() {
     const level = Math.floor(totalPts / 100) + 1;
     const ringPct = totalPts > 0 ? totalPts % 100 : 0;
     const streakHere = sessionStreak.id === s.id ? sessionStreak.count : 0;
+    const myPet = petFor(s.id);
+    const petRace = !myPet && totalPts >= PET_POINTS * 0.8 && totalPts < PET_POINTS && resolvePets(activeClassId()).left > 0;
     const card = document.createElement("button");
     card.type = "button";
     card.className = "student-card" + (isSelected ? " selected" : "");
@@ -1518,6 +1634,7 @@ function renderRoster() {
           ? `<img class="avatar" src="${avatarSrc}" alt="${s.name} avatar" loading="lazy" />`
           : `<span class="avatar avatar-placeholder">🎭<br><small>Pick avatar</small></span>`}
         ${isSad ? `<span class="sad-pin" aria-label="marked sad">☹</span>` : ``}
+        ${myPet ? `<img class="card-pet" src="${petImg(myPet.slug)}" alt="Pet: ${myPet.name}" title="${myPet.name}" />` : ``}
         ${avatarSrc ? `<span class="level-badge" title="Level ${level}: ${100 - ringPct} points to level ${level + 1}" aria-label="Level ${level}">Lv ${level}</span>` : ``}
         ${streakHere >= 3 ? `<span class="streak-flame" aria-label="${streakHere} in a row">🔥${streakHere}</span>` : ``}
       </div>
@@ -1840,9 +1957,12 @@ function renderDayDetail(container, key, dayBag, students) {
 /* ---------- Class goal meter ----------
    The whole class fills one shared bar. Stored per class (rewards.<class>.goal)
    so it never leaks between classes and syncs with the rest of the data.
-   progress = (class all-time points) - baseline, where baseline is the class
-   total when the current round started. Using a baseline (not a running
-   counter) means undoing points or removing a student can never desync it. */
+   The bar counts TODAY's class points only, so it starts at 0 every day with
+   nothing to reset. Points are already stored per day (state.dayScores), so
+   progress is just today's sum: undoing points or removing a student can
+   never desync it, and there is no stored baseline to go stale or sync wrong.
+   `announcedDay` remembers which day the goal was auto-celebrated, so
+   yesterday's win never blocks today's. */
 const GOAL_REWARDS = [
   { icon: "💃", label: "Dance break" },
   { icon: "🎮", label: "Game time" },
@@ -1851,11 +1971,11 @@ const GOAL_REWARDS = [
   { icon: "🎵", label: "Pick the song" },
   { icon: "🏆", label: "Teacher's choice" },
 ];
-const DEFAULT_GOAL = { target: 50, reward: "💃 Dance break", baseline: 0, rounds: 0, announced: false };
+const DEFAULT_GOAL = { target: 65, reward: "💃 Dance break", rounds: 0, announcedDay: "" };
+/* Points the class has earned TODAY (this is what the goal bar and the
+   5-point dances count). */
 function classTotalPoints() {
-  let t = 0;
-  for (const day of Object.keys(state.dayScores)) t += sumPts(state.dayScores[day]);
-  return t;
+  return sumPts(state.dayScores[todayKey()]);
 }
 function loadGoal() {
   let g = {};
@@ -1874,9 +1994,9 @@ function loadGoal() {
   const out = Object.assign({}, DEFAULT_GOAL, latest);
   out.cfgVersion = versions.length ? versions[versions.length - 1] : 0;
   out.target = Math.max(5, Math.round(Number(out.target) || DEFAULT_GOAL.target));
-  out.baseline = Math.max(0, Number(g.baseline) || 0);
   out.rounds = Math.max(0, Number(g.rounds) || 0);
-  out.announced = !!g.announced;
+  out.announcedDay = typeof g.announcedDay === "string" ? g.announcedDay : "";
+  out.announced = out.announcedDay === todayKey();   // true only if celebrated TODAY
   out._cfg = cfg;
   return out;
 }
@@ -1888,12 +2008,73 @@ function saveGoal(g, settingsChanged) {
     cfg[String(ver)] = `${g.target}|${g.reward}`;
   }
   localStorage.setItem(classKey("goal"), JSON.stringify({
-    baseline: g.baseline, rounds: g.rounds, announced: !!g.announced, cfg,
+    rounds: g.rounds, announcedDay: g.announced ? todayKey() : (g.announcedDay || ""), cfg,
   }));
 }
 function goalProgress(g) {
-  const earned = Math.max(0, classTotalPoints() - g.baseline);
+  const earned = Math.max(0, classTotalPoints());
   return { earned, pct: Math.min(100, Math.round((earned / g.target) * 100)), done: earned >= g.target };
+}
+
+/* ---------- Class dance ----------
+   Every time the class crosses another multiple of 5 points the avatars of the
+   class do a quick dance. When the goal bar fills, a full dance party plays.
+   Beat comes from Web Audio (no files), so it works offline in the desktop app. */
+const DANCE_STEP = 5;
+function classStepsCrossed(beforeTotal, afterTotal) {
+  return Math.floor(afterTotal / DANCE_STEP) - Math.floor(beforeTotal / DANCE_STEP);
+}
+let danceTimer = null;
+function danceBeat(ms, bpm) {
+  try {
+    sfx.ensure();
+    const ctx = sfx.ctx; if (!ctx) return;
+    const beat = 60 / bpm, beats = Math.floor(ms / 1000 / beat);
+    const t0 = ctx.currentTime + 0.03;
+    for (let i = 0; i < beats; i++) {
+      const t = t0 + i * beat;
+      // kick on every beat
+      const k = ctx.createOscillator(), kg = ctx.createGain();
+      k.type = "sine"; k.frequency.setValueAtTime(150, t); k.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+      kg.gain.setValueAtTime(0.5, t); kg.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+      k.connect(kg).connect(ctx.destination); k.start(t); k.stop(t + 0.18);
+      // hat on the off-beat
+      const h = ctx.createOscillator(), hg = ctx.createGain();
+      h.type = "square"; h.frequency.value = 6500;
+      hg.gain.setValueAtTime(0.045, t + beat / 2); hg.gain.exponentialRampToValueAtTime(0.001, t + beat / 2 + 0.05);
+      h.connect(hg).connect(ctx.destination); h.start(t + beat / 2); h.stop(t + beat / 2 + 0.06);
+      // little bass-note melody
+      const n = ctx.createOscillator(), ng = ctx.createGain();
+      n.type = "triangle"; n.frequency.value = [262, 330, 392, 330, 294, 370, 440, 370][i % 8];
+      ng.gain.setValueAtTime(0.16, t); ng.gain.exponentialRampToValueAtTime(0.001, t + beat * 0.9);
+      n.connect(ng).connect(ctx.destination); n.start(t); n.stop(t + beat);
+    }
+  } catch (e) { /* cosmetic */ }
+}
+function classDance(kind) {
+  const full = kind === "party";
+  const students = studentsForActiveClass();
+  if (!students.length) return;
+  document.querySelectorAll(".dance-stage").forEach(n => n.remove());
+  const stage = document.createElement("div");
+  stage.className = "dance-stage" + (full ? " dance-full" : "");
+  stage.setAttribute("aria-hidden", "true");
+  const moves = ["dm-bounce", "dm-spin", "dm-sway", "dm-hop", "dm-wiggle"];
+  stage.innerHTML = (full ? `<div class="dance-banner">🕺 DANCE PARTY! 💃</div>` : `<div class="dance-banner dance-mini">🎶 ${DANCE_STEP}-point dance!</div>`) +
+    `<div class="dance-row">` + students.map((st, i) => {
+      const slug = avatarSlugForStudent(st.id); const src = slug ? avatarFileFor(slug) : null;
+      const pet = petFor(st.id);
+      return `<div class="dancer ${moves[i % moves.length]}" style="--i:${i}">
+        ${src ? `<img src="${src}" alt="" />` : `<span class="dancer-ph">🎭</span>`}
+        ${pet ? `<img class="dancer-pet" src="${petImg(pet.slug)}" alt="" />` : ""}
+        <span class="dancer-name">${st.name}</span></div>`;
+    }).join("") + `</div>`;
+  document.body.appendChild(stage);
+  const ms = full ? 9000 : 3200;
+  danceBeat(ms, full ? 124 : 132);
+  clearTimeout(danceTimer);
+  danceTimer = setTimeout(() => { stage.classList.add("leaving"); setTimeout(() => stage.remove(), 500); }, ms);
+  stage.addEventListener("click", () => { stage.remove(); });
 }
 
 function renderGoalMeter() {
@@ -1907,7 +2088,7 @@ function renderGoalMeter() {
   host.setAttribute("aria-label", "Class goal");
   host.innerHTML = `
     <div class="goal-top">
-      <div class="goal-title">🎯 ${cls ? cls.label : "Class"} goal: <strong>${g.reward}</strong></div>
+      <div class="goal-title">🎯 ${cls ? cls.label : "Class"} goal today: <strong>${g.reward}</strong></div>
       <button type="button" class="goal-edit" aria-label="Edit class goal">⚙</button>
     </div>
     <div class="goal-track" role="progressbar" aria-valuemin="0" aria-valuemax="${g.target}" aria-valuenow="${Math.min(pr.earned, g.target)}" aria-label="Class goal progress">
@@ -1917,7 +2098,29 @@ function renderGoalMeter() {
     </div>
     <div class="goal-sub">${pr.done
       ? `<button type="button" class="btn btn-primary goal-claim">🎉 Goal reached! Celebrate ${g.reward}</button>`
-      : `${left} more point${left === 1 ? "" : "s"} to go${g.rounds ? ` · ${g.rounds} goal${g.rounds === 1 ? "" : "s"} won so far` : ""}`}</div>`;
+      : `${left} more point${left === 1 ? "" : "s"} to go today${g.rounds ? ` · ${g.rounds} goal${g.rounds === 1 ? "" : "s"} won so far` : ""}`}</div>`;
+  const pr2 = resolvePets(activeClassId());
+  const slots = [];
+  const ownerList = Object.entries(pr2.owners);
+  for (let i = 0; i < PET_SLOTS; i++) {
+    if (ownerList[i]) {
+      const [sid, slug] = ownerList[i];
+      const who = allStudentsRaw().find(x => x.id === sid);
+      slots.push(`<span class="pet-slot filled" title="${who ? who.name : ""} · ${PETS.find(p => p.slug === slug).name}"><img src="${petImg(slug)}" alt="" /></span>`);
+    } else slots.push(`<span class="pet-slot" aria-hidden="true">?</span>`);
+  }
+  const eligibleNow = studentsForActiveClass().filter(x => canClaimPet(x.id));
+  const strip = document.createElement("div");
+  strip.className = "pet-race";
+  strip.innerHTML = `<div class="pet-race-label">🐾 Magical pets <strong>${pr2.left}</strong> of ${PET_SLOTS} left · ${PET_POINTS} pts to win</div>
+    <div class="pet-slots">${slots.join("")}</div>
+    <button type="button" class="pet-view-btn">${eligibleNow.length ? `🎉 ${eligibleNow.length} ready to choose!` : "See pets"}</button>`;
+  host.appendChild(strip);
+  strip.querySelector(".pet-view-btn").addEventListener("click", () => {
+    if (eligibleNow.length === 1) openPetPicker(eligibleNow[0].id, false);
+    else if (eligibleNow.length > 1) openPetChooserList(eligibleNow);
+    else openPetPicker((studentsForActiveClass()[0] || {}).id, false);
+  });
   host.querySelector(".goal-edit").addEventListener("click", openGoalSettings);
   const claim = host.querySelector(".goal-claim");
   if (claim) claim.addEventListener("click", () => completeGoal());
@@ -1934,11 +2137,10 @@ function completeGoal() {
     <h2>${g.reward.replace(/^\S+\s*/, "") || "Reward"}!</h2>
     <p class="help">The whole class did it together — ${g.target} points! Everyone gets to enjoy it.</p>`;
   const row = el("div", "row");
-  row.appendChild(button("Start the next goal", "btn btn-primary", () => {
+  row.appendChild(button("Great! Done", "btn btn-primary", () => {
     const next = loadGoal();
-    next.baseline = classTotalPoints();
-    next.rounds = (next.rounds || 0) + 1;
-    next.announced = false;
+    next.rounds = (next.rounds || 0) + 1;     // count the win; the bar itself resets tomorrow
+    next.announced = true;
     saveGoal(next);
     closeModal();
     renderGoalMeter();
@@ -1967,22 +2169,38 @@ function fireConfettiBurst() {
 }
 
 /* Goal announcement when a reward pushes the bar over the line. */
-function maybeAnnounceGoal() {
+function maybeAnnounceGoal(beforeClassTotal) {
   const g = loadGoal();
   const pr = goalProgress(g);
+  if (typeof beforeClassTotal === "number" && !(pr.done && !g.announced)) {
+    if (classStepsCrossed(beforeClassTotal, classTotalPoints()) > 0) setTimeout(() => classDance("mini"), 600);
+  }
   if (pr.done && !g.announced) {
     g.announced = true; // auto-popup once per round; the meter button stays available after
     saveGoal(g);
-    setTimeout(() => completeGoal(), 2200);
+    setTimeout(() => classDance("party"), 500);
+    setTimeout(() => completeGoal(), 9800);
   }
 }
 
+function openPetChooserList(list) {
+  const back = el("div", "modal-backdrop");
+  const modal = el("div", "modal");
+  modal.appendChild(el("h2", null, "🐾 Who is choosing a pet?"));
+  const ul = el("div", "pet-who");
+  list.forEach(st => ul.appendChild(button(`${st.name} (${totalScoreFor(st.id)} pts)`, "btn btn-point", () => { closeModal(); openPetPicker(st.id, false); })));
+  modal.appendChild(ul);
+  modal.appendChild(button("Close", "btn btn-settings", closeModal));
+  back.appendChild(modal);
+  back.addEventListener("click", (e) => { if (e.target === back) closeModal(); });
+  document.body.appendChild(back);
+}
 function openGoalSettings() {
   const g = loadGoal();
   const back = el("div", "modal-backdrop");
   const modal = el("div", "modal");
   modal.appendChild(el("h2", null, "🎯 Class goal"));
-  modal.appendChild(el("p", "help", "Set a points target and a reward. The whole class fills the bar together."));
+  modal.appendChild(el("p", "help", "Set a points target and a reward. The whole class fills the bar together, and it starts again from 0 every day."));
   const t = document.createElement("input");
   t.type = "number"; t.min = "5"; t.max = "1000"; t.step = "5"; t.value = String(g.target);
   t.className = "goal-input"; t.setAttribute("aria-label", "Points target");
@@ -2013,15 +2231,6 @@ function openGoalSettings() {
     closeModal();
     renderGoalMeter();
     maybeAnnounceGoal();
-  }));
-  row.appendChild(button("Restart bar", "btn btn-remove", () => {
-    if (!confirm("Restart the bar from zero for this class?")) return;
-    const next = loadGoal();
-    next.baseline = classTotalPoints();
-    next.announced = false;
-    saveGoal(next);
-    closeModal();
-    renderGoalMeter();
   }));
   row.appendChild(button("Close", "btn btn-settings", closeModal));
   modal.appendChild(row);
@@ -2128,6 +2337,7 @@ function render() {
   renderGoalMeter();
   updateButtonStates();
   renderTodayLabel();
+  noticeLostPetClaims();
   // Keep the leaderboard toggle's label in sync with the saved scope.
   const lb = document.getElementById("leaderboard-toggle");
   if (lb) lb.textContent = state.leaderboardScope === "all" ? "Show today" : "Show all-time";
@@ -2137,3 +2347,23 @@ function render() {
 loadState();
 wireTopBar();
 render();
+
+/* ---------- New-day refresh ----------
+   If the app is left open overnight (very common on a classroom tablet), the
+   goal bar, day label and sad faces would keep showing yesterday until
+   someone clicked. Check the date every 30s and whenever the tab wakes up
+   (browsers throttle timers on sleeping devices), and start the new day. */
+let lastSeenDay = todayKey();
+function refreshIfNewDay() {
+  const now = todayKey();
+  if (now === lastSeenDay) return;
+  // Don't yank the screen away while a dialog (pet picker, celebration...) is open.
+  if (document.querySelector(".modal-backdrop, .dance-stage")) return;
+  lastSeenDay = now;
+  state.selectedId = null;
+  loadClassData();      // re-pins today and clears yesterday's sad faces
+  render();
+}
+setInterval(refreshIfNewDay, 30000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshIfNewDay(); });
+window.addEventListener("focus", refreshIfNewDay);

@@ -68,6 +68,8 @@
   overrides; `sync.js` can run with zero network calls.
 - `src/logic.js`: DOM-free, unit-testable rule module.
 - `tests/logic.test.js` (38 assertions, no deps, `npm test`) and
-  `tests/browser-smoke.js` (real Chromium via CDP, 22 assertions).
+  `tests/browser-smoke.js` (real Chromium via CDP, 23 assertions; its static
+  server injects `sync.enabled = false` so a test run can never push fake
+  points or orb claims to a school's cloud snapshot).
 - Added `LICENSE` (MIT), `CONTRIBUTING.md`, teacher guide, spec, refreshed
   README and `CLAUDE.md`. Cache-bust version bumped to `?v=28`.

@@ -37,8 +37,15 @@ const server = http.createServer((req, res) => {
   if (!file.startsWith(SRC)) { res.writeHead(403); res.end(); return; }
   fs.readFile(file, (err, data) => {
     if (err) { res.writeHead(404); res.end("not found"); return; }
+    let body = data;
+    // Never let a test browser push fake points / orb claims to a school's
+    // real sync endpoint. config.js is plain JS, so we just append an override.
+    if (rel === "config.js") {
+      body = Buffer.concat([data, Buffer.from(
+        "\n/* injected by tests/browser-smoke.js */\nwindow.REWARDS_CONFIG.sync.enabled = false;\n")]);
+    }
     res.writeHead(200, { "Content-Type": TYPES[path.extname(file)] || "application/octet-stream" });
-    res.end(data);
+    res.end(body);
   });
 });
 
@@ -100,6 +107,7 @@ async function main() {
 
     console.log("\nBoot / render");
     ok("all modules loaded", await evaluate("!!window.RewardsCore && !!window.OrbVault && !!window.RewardsLogic"));
+    ok("cloud sync is disabled during tests", await evaluate("window.REWARDS_CONFIG.sync.enabled === false"));
     ok("first goal is 50 points", (await evaluate("document.querySelector('.goal-text').textContent.trim()")) === "0 / 50");
     ok("ladder note explains 50 then 65", /First dance break at 50 points.*65 points/.test(
       await evaluate("document.querySelector('.goal-ladder-note').textContent")));

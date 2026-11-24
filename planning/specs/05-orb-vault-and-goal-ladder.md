@@ -75,7 +75,7 @@ arrival scoring and jiggles are documented in the changelog entry.
 
 - `npm test` — 38 pure-rule assertions (arrival boundary, ladder, sync
   convergence, jiggle determinism, orb rarity/trading).
-- `node tests/browser-smoke.js` — 22 assertions driving real Chromium through
+- `node tests/browser-smoke.js` — 23 assertions driving real Chromium through
   CDP (boot, render, +5, jiggle, 50→65 ladder, orb claim, badge).
 - `npm run test:assets` — all 12 orb icons + poster exist, videos are small
   and pass the 7.00s / 24fps contract via `ffprobe`.

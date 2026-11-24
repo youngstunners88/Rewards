@@ -245,6 +245,29 @@
     }
   }
 
+  /* ---------- Per-student signature jiggle ----------
+   * Every avatar reacts to a point gain in its OWN way. logic.js derives a
+   * stable motion profile from the student id (one of six keyframe styles
+   * plus a personal amplitude/rotation/duration), so the same student always
+   * jiggles identically while classmates visibly differ. */
+  const JIGGLE_CLASSES = ["bounce", "shimmy", "wobble", "hop-twist", "squash", "orbit"]
+    .map(n => "jiggle-" + n);
+  function playJiggle(studentId, avatarEl) {
+    if (!avatarEl || !window.RewardsLogic) return;
+    const profile = window.RewardsLogic.jiggleProfileFor(studentId);
+    const cls = "jiggle-" + profile.name;
+    avatarEl.classList.remove("jiggle", ...JIGGLE_CLASSES);
+    void avatarEl.offsetWidth;                       // restart the animation
+    Object.keys(profile.vars).forEach(k => avatarEl.style.setProperty(k, profile.vars[k]));
+    avatarEl.classList.add("jiggle", cls);
+    const clean = () => {
+      avatarEl.classList.remove("jiggle", cls);
+      avatarEl.removeEventListener("animationend", clean);
+    };
+    avatarEl.addEventListener("animationend", clean);
+    setTimeout(clean, 1500);                          // safety if reduced-motion kills the event
+  }
+
   // +5 "jackpot": a shower of stars falling across the whole card.
   function spawnStarShower(anchorEl) {
     const card = anchorEl.closest(".student-card") || anchorEl;
@@ -270,5 +293,5 @@
     setTimeout(() => pop.remove(), 1300);
   }
 
-  window.Reactions = { playReward, playDiscipline, playMilestone, tierFor };
+  window.Reactions = { playReward, playDiscipline, playMilestone, playJiggle, tierFor };
 })();

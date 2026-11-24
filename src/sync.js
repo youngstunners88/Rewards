@@ -25,10 +25,13 @@
 --------------------------------------------------------------------------- */
 (function () {
   const LS_PREFIX = "rewards.";
-  const SYNC_ENDPOINT = "https://lyra-70fe0d09.base44.app/functions/rewardsCloudSync";
-  // Unguessable fixed id — this app is single-tenant, so every device just
-  // needs to agree on the same group id to share the same cloud snapshot.
-  const GROUP_ID = "chris-rewards-9f2a1c7e-sync-v1";
+  // Schools can point sync at their own service (or switch it off entirely)
+  // in config.js. Defaults keep the original single-tenant deployment working.
+  const CFG = (window.REWARDS_CONFIG && window.REWARDS_CONFIG.sync) || {};
+  const SYNC_ENDPOINT = CFG.endpoint || "https://lyra-70fe0d09.base44.app/functions/rewardsCloudSync";
+  // Unguessable fixed id — every device in one school just needs to agree on
+  // the same group id to share the same cloud snapshot.
+  const GROUP_ID = CFG.groupId || "chris-rewards-9f2a1c7e-sync-v1";
   const RELOAD_GUARD_KEY = "___rewardsSyncReloadedOnce___";
   const POLL_MS = 4000;
 
@@ -228,6 +231,9 @@
       location.reload();
     }
   }
+
+  // Fully offline mode: no polling, no fetches. localStorage still works.
+  if (CFG.enabled === false) return;
 
   initialSyncAndMerge();
   setInterval(checkAndPushIfDirty, POLL_MS);

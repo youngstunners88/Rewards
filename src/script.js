@@ -14,7 +14,7 @@ const LS_ROSTER_REMOVED     = "rewards.roster.removed.v1";  // ids removed from 
 
 // startTime = the class's scheduled start, "HH:MM" 24h clock. Used to
 // score on-time / early / late check-ins (see checkIn()).
-const CLASSES = [
+const DEFAULT_CLASSES = [
   { id: "top-stars-2",      label: "Top Stars 2",         tier: "young",  startTime: "14:30" },
   { id: "top-stars-2-1on1", label: "TS2 1-on-1",          tier: "young",  startTime: "14:00" },
   { id: "top-stars-3",      label: "Top Stars 3",         tier: "mid",    startTime: "15:00" },
@@ -28,6 +28,11 @@ const CLASSES = [
   { id: "wave-2-a",          label: "Wave 2 A",            tier: "wave2",   startTime: "17:00" },
   { id: "wave-2-b",          label: "Wave 2 B",            tier: "wave2",   startTime: "17:00" },
 ];
+// A school can ship its own class list from config.js without touching this
+// file. Keep ids stable — they are part of every localStorage key.
+const CLASSES = (window.REWARDS_CONFIG && Array.isArray(window.REWARDS_CONFIG.classes) && window.REWARDS_CONFIG.classes.length)
+  ? window.REWARDS_CONFIG.classes
+  : DEFAULT_CLASSES;
 
 function activeClassId() { return state.activeClassId || CLASSES[0].id; }
 function classKey(field, classIdOverride) { return LS_PREFIX + (classIdOverride || activeClassId()) + "." + field; }
@@ -227,10 +232,14 @@ function sumPts(bag) {
 
 /* ---------- Entry check-in ----------
    Tap "Check in" when a student physically arrives. Points are scored
-   against the active class's scheduled start time:
-     - 5+ minutes EARLY (before start time)      -> 5 points
-     - within 5 minutes either side of start time -> 2 points ("on time")
-     - more than 5 minutes AFTER start time        -> 1 point (late)
+   against the active class's scheduled start time (see logic.js):
+     - 5+ minutes early  -> 5 points
+     - 4 minutes early   -> 3 points
+     - 3–1 minutes early -> 2 points
+     - on time (0–5 min after start) -> 2 points
+     - late (>5 min after start)     -> 1 point
+   Whole-minute rounding is done in logic.js so "4m30s early" really is the
+   4-minute tier (the old float comparison scored it as "on time").
    One check-in per student per day; tapping again just shows their entry. */
 function activeClassStartTime() {
   const c = CLASSES.find(c => c.id === activeClassId());
@@ -243,9 +252,11 @@ function startDateTimeFor(startTimeStr, ref) {
   return d;
 }
 function entryTierForDiff(diffMin) {
-  if (diffMin <= -5) return { tier: "early",   points: 5 };
-  if (diffMin <= 5)  return { tier: "on-time", points: 2 };
-  return { tier: "late", points: 1 };
+  // Pure rule lives in logic.js so the boundary cases are unit-tested.
+  return window.RewardsLogic.entryTierForDiff(diffMin);
+}
+function entryTierLabel(tier) {
+  return window.RewardsLogic.entryTierLabel(tier);
 }
 function formatClock(d) {
   // Fixed en-US formatting regardless of system/browser locale.
@@ -262,19 +273,19 @@ function checkIn(studentId) {
   const bag = state.entries[state.currentDateKey];
   if (bag[studentId]) {
     const e = bag[studentId];
-    alert(`Already checked in today at ${e.time} (+${e.points} ${e.tier === "early" ? "early" : e.tier === "late" ? "late" : "on time"}).`);
+    alert(`Already checked in today at ${e.time} (+${e.points} · ${entryTierLabel(e.tier)}).`);
     return;
   }
   const startTimeStr = activeClassStartTime();
   const now = new Date();
-  let points = 2, tier = "on-time";
+  let points = 2, tier = "on-time", earlyMin = 0;
   if (startTimeStr) {
     const start = startDateTimeFor(startTimeStr, now);
     const diffMin = (now - start) / 60000;
-    ({ tier, points } = entryTierForDiff(diffMin));
+    ({ tier, points, earlyMin } = entryTierForDiff(diffMin));
   }
   const beforeTotal = totalScoreFor(studentId);
-  bag[studentId] = { time: formatClock(now), points, tier };
+  bag[studentId] = { time: formatClock(now), points, tier, earlyMin, diffLabel: entryTierLabel(tier) };
   saveEntries();
 
   const today = ensureToday();
@@ -282,11 +293,13 @@ function checkIn(studentId) {
   saveDayScores();
   saveCurrentDate();
 
+  // render() rebuilds the roster, so visual effects MUST be attached after it.
+  const ctx = reactionContextFor(studentId, 1);
   sfx.happy();
-  animatePop(studentId, `+${points}`);
-  fireReaction("reward", points, studentId, reactionContextFor(studentId, 1));
-  maybeCelebrateMilestone(studentId, beforeTotal);
   render();
+  animatePop(studentId, `+${points}`);
+  fireReaction("reward", points, studentId, ctx);
+  maybeCelebrateMilestone(studentId, beforeTotal);
 }
 function allEntriesFor(studentId) {
   const out = [];
@@ -336,8 +349,9 @@ function addTestScore(studentId, dateKey, rawOutOf20) {
   saveDayScores();
 
   sfx.happy();
-  maybeCelebrateMilestone(studentId, beforeTotal);
   render();
+  if (points > 0) animatePop(studentId, `+${points}`);
+  maybeCelebrateMilestone(studentId, beforeTotal);
 }
 function removeTestScore(studentId, testId) {
   if (!state.tests[studentId]) return;
@@ -408,11 +422,13 @@ function rewardPoints(amount) {
   saveDayScores();
   saveCurrentDate();
   if (Object.keys(state.sad).length) saveSad();
+  // render() rebuilds the roster: attach pop / jiggle / reaction AFTER it or
+  // they are wiped by the new DOM. (This used to make reactions invisible.)
   sfx.happy();
+  render();
   animatePop(state.selectedId, `+${amount}`);
   fireReaction("reward", amount, state.selectedId, ctx);
   maybeCelebrateMilestone(state.selectedId, beforeTotal);
-  render();
 }
 
 function giveSad() {
@@ -427,8 +443,8 @@ function giveSad() {
   saveSad();
   sfx.sad();
   resetStreak();
-  fireReaction("discipline", null, state.selectedId);
   render();
+  fireReaction("discipline", null, state.selectedId);
 }
 
 function clearSad(id) {
@@ -447,6 +463,8 @@ function removeStudent(id) {
   saveRemovedIds(removed);
 
   freeAvatarForStudent(id);
+  // Their rare orb returns to the unclaimed pool instead of being lost.
+  if (window.OrbVault) window.OrbVault.releaseOrbForStudent(id);
   delete state.sad[id];
   for (const day of Object.keys(state.dayScores)) {
     if (state.dayScores[day]) {
@@ -490,6 +508,7 @@ function resetAll() {
   state.dayScores[state.currentDateKey] = {};
   saveDayScores();
   saveSad();
+  resetGoalRoundsForToday();   // points are gone, so today's dance-break rounds restart
   render();
 }
 
@@ -501,6 +520,7 @@ function resetToDefault() {
   state.selectedId = null;
   saveDayScores();
   saveSad();
+  resetGoalRoundsForToday();
   render();
 }
 
@@ -509,6 +529,12 @@ function animatePop(studentId, label) {
   const card = document.querySelector(`.student-card[data-student-id="${studentId}"]`);
   if (!card) return;
   card.classList.remove("pop"); void card.offsetWidth; card.classList.add("pop");
+  // Every student has their own signature jiggle (deterministic from their id).
+  const frame = card.querySelector('[data-role="avatar-frame"]');
+  const avatar = frame ? frame.querySelector("img.avatar, .avatar-placeholder") : null;
+  if (window.Reactions && typeof window.Reactions.playJiggle === "function") {
+    window.Reactions.playJiggle(studentId, avatar);
+  }
   const tag = document.createElement("div");
   tag.className = "float-num";
   tag.textContent = label;
@@ -569,7 +595,7 @@ function fireReaction(kind, amount, studentId, ctx) {
    the winner is never stored, it is derived: sort claims by timestamp (ties by
    student id), a pet goes to the earliest claimant, and only the first
    PET_SLOTS valid claims count. Every device computes the same answer. */
-const PET_POINTS = 600;
+const PET_POINTS = Number(window.REWARDS_CONFIG && window.REWARDS_CONFIG.petPoints) || 600;
 const PET_SLOTS = 8;
 const PETS = [
   { slug: "aurora-dragon",    name: "Aurora Dragon",    blurb: "Wings that shimmer like the northern lights" },
@@ -759,6 +785,7 @@ function maybeCelebrateMilestone(studentId, beforeTotal) {
   const classBefore = classTotalPoints() - (afterTotal - beforeTotal);
   maybeAnnounceGoal(classBefore);
   maybeOfferPet(studentId, beforeTotal);
+  if (window.OrbVault) window.OrbVault.maybeOfferOrb(studentId, beforeTotal);
   const milestone = crossedMilestone(beforeTotal, afterTotal);
   if (!milestone) return;
   const student = allStudentsRaw().find(s => s.id === studentId);
@@ -1041,7 +1068,7 @@ function openStudentDetail(studentId) {
     const ul = el("ul", "detail-list");
     entries.slice(0, 15).forEach(e => {
       const li = el("li");
-      const tierLabel = e.tier === "early" ? "Early" : e.tier === "late" ? "Late" : "On time";
+      const tierLabel = e.diffLabel || entryTierLabel(e.tier);
       li.innerHTML = `<span>${formatDayKeyShort(e.day)} · ${e.time}</span><span class="detail-list-tag">${tierLabel} · +${e.points}</span>`;
       ul.appendChild(li);
     });
@@ -1064,8 +1091,18 @@ function openStudentDetail(studentId) {
     modal.appendChild(el("p", "muted", "No test scores recorded yet."));
   }
 
+  if (window.OrbVault) {
+    modal.appendChild(el("h3", "detail-section-title", "🔮 Rare orb"));
+    const orbBox = el("div", "detail-orb");
+    orbBox.innerHTML = window.OrbVault.detailSectionHtml(studentId);
+    modal.appendChild(orbBox);
+  }
+
   const row = el("div", "row");
   row.appendChild(button(petFor(studentId) ? "🐾 View pet" : "🐾 Pets", "btn btn-settings", () => { closeModal(); openPetPicker(studentId, false); }));
+  if (window.OrbVault) {
+    row.appendChild(button("🔮 Orb case", "btn btn-settings", () => { closeModal(); window.OrbVault.openOrbCase(); }));
+  }
   if (state.sad[studentId]) {
     row.appendChild(button("☺ Clear sad face", "btn btn-settings", () => {
       clearSad(studentId);
@@ -1126,7 +1163,8 @@ function resizeDataUrlForUpload(dataUrl, maxWidth) {
   });
 }
 
-const LESSON_SUMMARY_ENDPOINT = "https://lyra-70fe0d09.base44.app/functions/generateLessonSummary";
+const LESSON_SUMMARY_ENDPOINT = (window.REWARDS_CONFIG && window.REWARDS_CONFIG.lessonSummaryEndpoint)
+  || "https://lyra-70fe0d09.base44.app/functions/generateLessonSummary";
 const LESSON_LOG_MAX_IMAGES = 3;
 
 // Chris's real weekly timetable (from the printed schedule photo), used to
@@ -1135,7 +1173,7 @@ const LESSON_LOG_MAX_IMAGES = 3;
 // Weekdays with no entry simply mean that class doesn't run that day —
 // the modal falls back to a plain custom-time picker (still all English,
 // no native OS date/time control) in that case.
-const WEEKLY_SCHEDULE = {
+const DEFAULT_WEEKLY_SCHEDULE = {
   "top-stars-2":        { mon: [["14:30","15:00"]], tue: [["14:30","15:00"]], wed: [["14:30","15:00"]], thu: [["14:30","15:00"]] },
   "top-stars-2-1on1":   { thu: [["14:00","14:30"]] },
   "top-stars-3":        { tue: [["15:00","16:00"]], thu: [["15:00","16:00"]], fri: [["15:00","16:00"]] },
@@ -1147,6 +1185,7 @@ const WEEKLY_SCHEDULE = {
   "wave-2-a":           { mon: [["17:00","17:45"]], wed: [["17:00","17:45"]], fri: [["17:00","17:45"]] },
   "wave-2-b":           { tue: [["17:00","18:00"]], thu: [["17:00","18:00"]], fri: [["17:45","18:30"]] },
 };
+const WEEKLY_SCHEDULE = (window.REWARDS_CONFIG && window.REWARDS_CONFIG.weeklySchedule) || DEFAULT_WEEKLY_SCHEDULE;
 const WEEKDAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 const WEEKDAY_LABELS = { sun: "Sunday", mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday", sat: "Saturday" };
 
@@ -1635,6 +1674,7 @@ function renderRoster() {
           : `<span class="avatar avatar-placeholder">🎭<br><small>Pick avatar</small></span>`}
         ${isSad ? `<span class="sad-pin" aria-label="marked sad">☹</span>` : ``}
         ${myPet ? `<img class="card-pet" src="${petImg(myPet.slug)}" alt="Pet: ${myPet.name}" title="${myPet.name}" />` : ``}
+        ${window.OrbVault ? window.OrbVault.cardBadgeHtml(s.id) : ``}
         ${avatarSrc ? `<span class="level-badge" title="Level ${level}: ${100 - ringPct} points to level ${level + 1}" aria-label="Level ${level}">Lv ${level}</span>` : ``}
         ${streakHere >= 3 ? `<span class="streak-flame" aria-label="${streakHere} in a row">🔥${streakHere}</span>` : ``}
       </div>
@@ -1954,15 +1994,19 @@ function renderDayDetail(container, key, dayBag, students) {
 }
 
 /* ---------- Top bar wiring ---------- */
-/* ---------- Class goal meter ----------
-   The whole class fills one shared bar. Stored per class (rewards.<class>.goal)
-   so it never leaks between classes and syncs with the rest of the data.
-   The bar counts TODAY's class points only, so it starts at 0 every day with
-   nothing to reset. Points are already stored per day (state.dayScores), so
-   progress is just today's sum: undoing points or removing a student can
-   never desync it, and there is no stored baseline to go stale or sync wrong.
-   `announcedDay` remembers which day the goal was auto-celebrated, so
-   yesterday's win never blocks today's. */
+/* ---------- Class goal meter (dance-break ladder) ----------
+   The whole class fills one shared bar, stored per class (rewards.<class>.goal).
+   Every day starts with a 50-point goal. When the class reaches it, the dance
+   break is celebrated and the bar RESETS to 0; every goal after that is 65
+   points. A new day automatically starts again at 50.
+
+   Completed rounds live in an append-only log (one record per celebration),
+   keyed by day. `at` is today's class point total when the round was won and
+   becomes the baseline for the next round. A log of immutable records with
+   deterministic ids survives cloud sync (which MAX-merges numbers and unions
+   arrays) — unlike the old mutable `rounds` / `baseline` / `announced` flags,
+   which is why the previous attempt kept desyncing. Pure ladder math lives in
+   logic.js and is unit-tested. */
 const GOAL_REWARDS = [
   { icon: "💃", label: "Dance break" },
   { icon: "🎮", label: "Game time" },
@@ -1971,7 +2015,11 @@ const GOAL_REWARDS = [
   { icon: "🎵", label: "Pick the song" },
   { icon: "🏆", label: "Teacher's choice" },
 ];
-const DEFAULT_GOAL = { target: 65, reward: "💃 Dance break", rounds: 0, announcedDay: "" };
+const GOAL_LOGIC = window.RewardsLogic;
+const DEFAULT_GOAL_CFG = Object.assign({},
+  GOAL_LOGIC.GOAL_DEFAULTS,
+  (window.REWARDS_CONFIG && window.REWARDS_CONFIG.goal) || {});
+
 /* Points the class has earned TODAY (this is what the goal bar and the
    5-point dances count). */
 function classTotalPoints() {
@@ -1980,40 +2028,69 @@ function classTotalPoints() {
 function loadGoal() {
   let g = {};
   try { g = JSON.parse(localStorage.getItem(classKey("goal")) || "{}"); } catch { g = {}; }
-  // Cloud sync merges numbers with MAX and can't tell which device edited last,
-  // so settings are stored as a list of versions ("cfg": {"<n>": {target,reward}}).
-  // The highest version wins as a whole, which makes lowering a target stick.
+  // Settings are stored as versioned single strings so sync never splices
+  // two simultaneous edits together; the highest version wins as a whole.
   const cfg = g.cfg && typeof g.cfg === "object" ? g.cfg : {};
   const versions = Object.keys(cfg).map(Number).filter(Number.isFinite).sort((a, b) => a - b);
-  // Each version is ONE string ("<target>|<reward>"): sync merges objects field
-  // by field, which could splice two simultaneous edits together. A single
-  // string is taken whole.
-  const raw = versions.length ? cfg[String(versions[versions.length - 1])] : "";
-  const cut = typeof raw === "string" ? raw.indexOf("|") : -1;
-  const latest = cut > 0 ? { target: Number(raw.slice(0, cut)), reward: raw.slice(cut + 1) } : {};
-  const out = Object.assign({}, DEFAULT_GOAL, latest);
-  out.cfgVersion = versions.length ? versions[versions.length - 1] : 0;
-  out.target = Math.max(5, Math.round(Number(out.target) || DEFAULT_GOAL.target));
-  out.rounds = Math.max(0, Number(g.rounds) || 0);
-  out.announcedDay = typeof g.announcedDay === "string" ? g.announcedDay : "";
-  out.announced = out.announcedDay === todayKey();   // true only if celebrated TODAY
-  out._cfg = cfg;
-  return out;
+  const ver = versions.length ? versions[versions.length - 1] : 0;
+  const raw = versions.length ? cfg[String(ver)] : "";
+  const config = GOAL_LOGIC.parseGoalConfig(raw, DEFAULT_GOAL_CFG);
+  const roundLog = Array.isArray(g.roundLog) ? g.roundLog : [];
+  return Object.assign(
+    { cfgVersion: ver, _cfg: cfg, roundLog, config },
+    GOAL_LOGIC.goalState(roundLog, todayKey(), config));
 }
 function saveGoal(g, settingsChanged) {
   const cfg = Object.assign({}, g._cfg || {});
   let ver = g.cfgVersion || 0;
   if (settingsChanged || !Object.keys(cfg).length) {
     ver = Math.max(ver, ...Object.keys(cfg).map(Number).filter(Number.isFinite), 0) + 1;
-    cfg[String(ver)] = `${g.target}|${g.reward}`;
+    cfg[String(ver)] = `${g.config.firstTarget}|${g.config.nextTarget}|${g.config.reward}`;
   }
-  localStorage.setItem(classKey("goal"), JSON.stringify({
-    rounds: g.rounds, announcedDay: g.announced ? todayKey() : (g.announcedDay || ""), cfg,
-  }));
+  localStorage.setItem(classKey("goal"), JSON.stringify({ cfg, roundLog: g.roundLog || [] }));
 }
 function goalProgress(g) {
-  const earned = Math.max(0, classTotalPoints());
-  return { earned, pct: Math.min(100, Math.round((earned / g.target) * 100)), done: earned >= g.target };
+  return GOAL_LOGIC.goalProgress(g, classTotalPoints());
+}
+/* Auto-celebration is once per round per browser session (not persisted), so
+   a reload never re-triggers the 9-second dance party for the same round. */
+function goalAnnouncedKey(g) {
+  return `rewards.goalAnnounced.${activeClassId()}.${todayKey()}.${g.roundIndex}`;
+}
+function goalAnnounced(g) {
+  try { return sessionStorage.getItem(goalAnnouncedKey(g)) === "1"; } catch { return false; }
+}
+function markGoalAnnounced(g) {
+  try { sessionStorage.setItem(goalAnnouncedKey(g), "1"); } catch { /* private mode */ }
+}
+function clearGoalAnnouncedForToday() {
+  try {
+    const prefix = `rewards.goalAnnounced.${activeClassId()}.${todayKey()}.`;
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const k = sessionStorage.key(i);
+      if (k && k.indexOf(prefix) === 0) sessionStorage.removeItem(k);
+    }
+  } catch { /* private mode */ }
+}
+/* Append the just-won round. The id is deterministic (day + round index) so
+   two devices celebrating the same round converge to ONE record after sync. */
+function appendGoalRound(g) {
+  const next = Object.assign({}, g, { roundLog: (g.roundLog || []).slice() });
+  next.roundLog.push({
+    id: `${todayKey()}-${next.roundIndex}`,
+    day: todayKey(),
+    at: Math.max(0, classTotalPoints()),
+    target: next.target,
+    reward: next.reward,
+    ts: Date.now(),
+  });
+  saveGoal(next);
+}
+function resetGoalRoundsForToday() {
+  const g = loadGoal();
+  g.roundLog = (g.roundLog || []).filter(r => r.day !== todayKey());
+  saveGoal(g);
+  clearGoalAnnouncedForToday();
 }
 
 /* ---------- Class dance ----------
@@ -2022,7 +2099,7 @@ function goalProgress(g) {
    Beat comes from Web Audio (no files), so it works offline in the desktop app. */
 const DANCE_STEP = 5;
 function classStepsCrossed(beforeTotal, afterTotal) {
-  return Math.floor(afterTotal / DANCE_STEP) - Math.floor(beforeTotal / DANCE_STEP);
+  return GOAL_LOGIC.classStepsCrossed(beforeTotal, afterTotal, DANCE_STEP);
 }
 let danceTimer = null;
 function danceBeat(ms, bpm) {
@@ -2052,6 +2129,13 @@ function danceBeat(ms, bpm) {
   } catch (e) { /* cosmetic */ }
 }
 function classDance(kind) {
+  // A 700-point orb reveal can land on the same award as a goal. Let the
+  // 7-second unlock own the screen (and the audio) instead of stacking a
+  // dance party on top of it.
+  if (document.querySelector(".orb-unlock-backdrop")) {
+    setTimeout(() => classDance(kind), 2500);
+    return;
+  }
   const full = kind === "party";
   const students = studentsForActiveClass();
   if (!students.length) return;
@@ -2067,6 +2151,7 @@ function classDance(kind) {
       return `<div class="dancer ${moves[i % moves.length]}" style="--i:${i}">
         ${src ? `<img src="${src}" alt="" />` : `<span class="dancer-ph">🎭</span>`}
         ${pet ? `<img class="dancer-pet" src="${petImg(pet.slug)}" alt="" />` : ""}
+        ${window.OrbVault ? window.OrbVault.dancerBadgeHtml(st.id) : ""}
         <span class="dancer-name">${st.name}</span></div>`;
     }).join("") + `</div>`;
   document.body.appendChild(stage);
@@ -2086,9 +2171,10 @@ function renderGoalMeter() {
   const left = Math.max(0, g.target - pr.earned);
   host.className = "goal-meter" + (pr.done ? " goal-done" : "");
   host.setAttribute("aria-label", "Class goal");
+  const roundWord = g.roundIndex === 0 ? "first goal" : `goal ${g.roundIndex + 1}`;
   host.innerHTML = `
     <div class="goal-top">
-      <div class="goal-title">🎯 ${cls ? cls.label : "Class"} goal today: <strong>${g.reward}</strong></div>
+      <div class="goal-title">🎯 ${cls ? cls.label : "Class"} · ${roundWord}: <strong>${g.reward}</strong></div>
       <button type="button" class="goal-edit" aria-label="Edit class goal">⚙</button>
     </div>
     <div class="goal-track" role="progressbar" aria-valuemin="0" aria-valuemax="${g.target}" aria-valuenow="${Math.min(pr.earned, g.target)}" aria-label="Class goal progress">
@@ -2098,7 +2184,10 @@ function renderGoalMeter() {
     </div>
     <div class="goal-sub">${pr.done
       ? `<button type="button" class="btn btn-primary goal-claim">🎉 Goal reached! Celebrate ${g.reward}</button>`
-      : `${left} more point${left === 1 ? "" : "s"} to go today${g.rounds ? ` · ${g.rounds} goal${g.rounds === 1 ? "" : "s"} won so far` : ""}`}</div>`;
+      : `${left} more point${left === 1 ? "" : "s"} to ${g.target}${g.roundsWon ? ` · ${g.roundsWon} dance break${g.roundsWon === 1 ? "" : "s"} won today` : ""}`}</div>
+    <div class="goal-ladder-note">${g.roundIndex === 0
+      ? `First dance break at ${g.config.firstTarget} points · after the reset every goal is ${g.config.nextTarget} points`
+      : `Bar resets after each celebration · next target ${g.config.nextTarget} points`}</div>`;
   const pr2 = resolvePets(activeClassId());
   const slots = [];
   const ownerList = Object.entries(pr2.owners);
@@ -2121,13 +2210,19 @@ function renderGoalMeter() {
     else if (eligibleNow.length > 1) openPetChooserList(eligibleNow);
     else openPetPicker((studentsForActiveClass()[0] || {}).id, false);
   });
+  if (window.OrbVault) window.OrbVault.renderOrbStrip(host);
   host.querySelector(".goal-edit").addEventListener("click", openGoalSettings);
   const claim = host.querySelector(".goal-claim");
   if (claim) claim.addEventListener("click", () => completeGoal());
 }
 
-/* Celebrate once per round, then start the next round from the current total. */
+/* Celebrate once per round, then RESET the bar and start the next goal. */
 function completeGoal() {
+  // Same reason as classDance(): wait until a rare-orb reveal has finished.
+  if (document.querySelector(".orb-unlock-backdrop")) {
+    setTimeout(completeGoal, 2500);
+    return;
+  }
   const g = loadGoal();
   const pr = goalProgress(g);
   if (!pr.done) return;
@@ -2135,13 +2230,10 @@ function completeGoal() {
   const modal = el("div", "modal goal-modal");
   modal.innerHTML = `<div class="goal-big">${(g.reward.match(/^\S+/) || ["🎉"])[0]}</div>
     <h2>${g.reward.replace(/^\S+\s*/, "") || "Reward"}!</h2>
-    <p class="help">The whole class did it together — ${g.target} points! Everyone gets to enjoy it.</p>`;
+    <p class="help">The whole class did it together — ${g.target} points! Enjoy the break. Then the bar resets to 0 and the next goal is <strong>${g.config.nextTarget}</strong> points.</p>`;
   const row = el("div", "row");
-  row.appendChild(button("Great! Done", "btn btn-primary", () => {
-    const next = loadGoal();
-    next.rounds = (next.rounds || 0) + 1;     // count the win; the bar itself resets tomorrow
-    next.announced = true;
-    saveGoal(next);
+  row.appendChild(button("🎉 Done — start the next goal", "btn btn-primary", () => {
+    appendGoalRound(loadGoal());   // writes the round record; next target is 65
     closeModal();
     renderGoalMeter();
   }));
@@ -2168,16 +2260,18 @@ function fireConfettiBurst() {
   }
 }
 
-/* Goal announcement when a reward pushes the bar over the line. */
+/* Goal announcement when a reward pushes the bar over the line.
+   Mini dances count 5-point steps WITHIN the current round, so they start
+   from 0 again after every reset instead of keying off the day's total. */
 function maybeAnnounceGoal(beforeClassTotal) {
   const g = loadGoal();
   const pr = goalProgress(g);
-  if (typeof beforeClassTotal === "number" && !(pr.done && !g.announced)) {
-    if (classStepsCrossed(beforeClassTotal, classTotalPoints()) > 0) setTimeout(() => classDance("mini"), 600);
+  if (typeof beforeClassTotal === "number" && !pr.done) {
+    const beforeEarned = Math.max(0, beforeClassTotal - g.baseline);
+    if (classStepsCrossed(beforeEarned, pr.earned) > 0) setTimeout(() => classDance("mini"), 600);
   }
-  if (pr.done && !g.announced) {
-    g.announced = true; // auto-popup once per round; the meter button stays available after
-    saveGoal(g);
+  if (pr.done && !goalAnnounced(g)) {
+    markGoalAnnounced(g);   // auto-popup once per round; the meter button stays available
     setTimeout(() => classDance("party"), 500);
     setTimeout(() => completeGoal(), 9800);
   }
@@ -2199,13 +2293,20 @@ function openGoalSettings() {
   const g = loadGoal();
   const back = el("div", "modal-backdrop");
   const modal = el("div", "modal");
-  modal.appendChild(el("h2", null, "🎯 Class goal"));
-  modal.appendChild(el("p", "help", "Set a points target and a reward. The whole class fills the bar together, and it starts again from 0 every day."));
-  const t = document.createElement("input");
-  t.type = "number"; t.min = "5"; t.max = "1000"; t.step = "5"; t.value = String(g.target);
-  t.className = "goal-input"; t.setAttribute("aria-label", "Points target");
-  const lt = el("label", "goal-label", "Points to reach"); lt.appendChild(t);
-  modal.appendChild(lt);
+  modal.appendChild(el("h2", null, "🎯 Dance-break goals"));
+  modal.appendChild(el("p", "help",
+    `Each day starts at ${g.config.firstTarget} points. After that dance break the bar resets to 0 and every following goal is ${g.config.nextTarget} points. Change the two targets and the reward below; a new day always starts again at the first target.`));
+  const makeInput = (label, value, aria) => {
+    const input = document.createElement("input");
+    input.type = "number"; input.min = "5"; input.max = "1000"; input.step = "5";
+    input.value = String(value);
+    input.className = "goal-input"; input.setAttribute("aria-label", aria);
+    const wrap = el("label", "goal-label", label); wrap.appendChild(input);
+    modal.appendChild(wrap);
+    return input;
+  };
+  const first = makeInput("First goal (points)", g.config.firstTarget, "First goal points");
+  const next = makeInput("Every goal after that (points)", g.config.nextTarget, "Later goal points");
   modal.appendChild(el("div", "goal-label", "Reward"));
   const chips = el("div", "goal-chips");
   let chosen = g.reward;
@@ -2222,15 +2323,23 @@ function openGoalSettings() {
   modal.appendChild(chips); modal.appendChild(custom); mark();
   const row = el("div", "row");
   row.appendChild(button("Save", "btn btn-primary", () => {
-    const next = loadGoal();
-    next.target = Math.max(5, Math.min(1000, Math.round(Number(t.value) || next.target)));
-    const c = custom.value.trim();
-    next.reward = c ? `🎁 ${c}` : chosen;
-    next.announced = false;
-    saveGoal(next, true);
+    const fresh = loadGoal();
+    fresh.config = Object.assign({}, fresh.config, {
+      firstTarget: GOAL_LOGIC.clampTarget(first.value, fresh.config.firstTarget),
+      nextTarget: GOAL_LOGIC.clampTarget(next.value, fresh.config.nextTarget),
+      reward: custom.value.trim() ? `🎁 ${custom.value.trim()}` : chosen,
+    });
+    saveGoal(fresh, true);
+    clearGoalAnnouncedForToday();
     closeModal();
     renderGoalMeter();
     maybeAnnounceGoal();
+  }));
+  row.appendChild(button("Restart today's goals", "btn btn-remove", () => {
+    if (!confirm("Clear today's dance-break rounds and start again at the first goal?")) return;
+    resetGoalRoundsForToday();
+    closeModal();
+    renderGoalMeter();
   }));
   row.appendChild(button("Close", "btn btn-settings", closeModal));
   modal.appendChild(row);
@@ -2342,6 +2451,19 @@ function render() {
   const lb = document.getElementById("leaderboard-toggle");
   if (lb) lb.textContent = state.leaderboardScope === "all" ? "Show today" : "Show all-time";
 }
+
+/* ---------- Shared helpers for add-on modules (orbs.js) ----------
+   orbs.js loads before this file, so it only reaches these helpers at call
+   time (after boot), never during its own load. Keeping the boundary small
+   means the orb vault never depends on script.js internals. */
+window.RewardsCore = {
+  classKey, activeClassId, totalScoreFor, studentsForActiveClass, allStudentsRaw,
+  el, button, closeModal, render, fireConfettiBurst,
+  className: () => {
+    const c = CLASSES.find(x => x.id === activeClassId());
+    return c ? c.label : "Class";
+  },
+};
 
 /* ---------- Boot ---------- */
 loadState();

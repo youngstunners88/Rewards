@@ -6,25 +6,23 @@ The actual app. HTML, CSS, JS, assets. All in `/src/`.
 
 ```
 src/
-├── index.html         ← single page, loads everything
-├── style.css          ← all styles, mobile-first, no framework
-├── students.js        ← student data (names, avatars). Edit this to add students.
-├── script.js          ← main app logic. Wires UI to data and storage.
-├── components/        ← modular UI pieces, each in its own file
-│   ├── avatar-grid.js ← renders the student grid
-│   ├── reward-panel.js← renders the +1/+2/+3/sad buttons
-│   └── leaderboard.js ← renders the live ranking
-├── services/          ← non-UI logic
-│   ├── storage.js     ← all localStorage read/write goes through here
-│   └── audio.js       ← plays sounds (happy, sad, click)
-├── utils/             ← tiny helpers
-│   └── dom.js         ← small DOM helpers ($, $$)
-├── assets/
-│   ├── images/        ← avatar images and any other visuals
-│   └── sounds/        ← .mp3 or .wav files (happy.mp3, sad.mp3, click.mp3)
-└── tests/             ← simple smoke tests you can run in the browser
-    └── smoke.html     ← opens in browser, runs assertions
+├── index.html         ← single page; script/style load order + ?v=N cache bust
+├── config.js          ← school-specific settings (classes, sync, thresholds)
+├── logic.js           ← PURE rules: arrival scoring, goal ladder, orb rarity, jiggles
+├── script.js          ← main app: state, storage, rendering, goal meter, pets, dance
+├── orbs.js            ← Rare Orb Vault: collection, trading, 7s unlock reveal
+├── reactions.js       ← sounds, reaction videos, per-student signature jiggle
+├── sync.js            ← optional additive cloud sync (switch-off-able in config.js)
+├── students.js        ← default roster. Edit this to add students.
+├── avatars.js         ← selectable avatar gallery
+├── style.css / themes.css ← all styles, mobile-first, no framework
+└── assets/
+    ├── images/        ← avatars, character library, pets, generated art
+    ├── orbs/          ← Blender-rendered orb icons + 7s unlock video
+    ├── reactions/     ← reaction .webm loops
+    └── sounds/        ← reward/sad chimes + voice lines
 ```
+Tests live in `/tests` at the repo root (`logic.test.js`, `browser-smoke.js`).
 
 ## Code conventions
 
@@ -45,15 +43,22 @@ src/
 
 ## State management
 
-- **Single source of truth:** `services/storage.js` owns the state object.
-- **Read at boot:** `script.js` calls `Storage.load()` on DOMContentLoaded.
-- **Write on every change:** any action that changes state calls `Storage.save(state)`.
-- **Render on every change:** any action calls a `render()` function on each component.
+- **Single source of truth:** the `state` object in `script.js`, persisted to
+  `localStorage` under per-class keys (`rewards.<classId>.<field>`).
+- **Read at boot:** `loadState()` → `loadActiveClass()` + `loadClassData()`.
+- **Write on every change:** `saveDayScores()` / `saveSad()` / `saveEntries()` /
+  `saveTests()` / `saveGoal()` etc.
+- **Render on every change:** `render()` re-renders every panel. Visual effects
+  (pop, jiggle, reaction video) MUST be attached after `render()` rebuilds the
+  roster, or they are wiped by the new DOM.
+- **Derived, never stored:** goal rounds and orb ownership are replayed from
+  append-only logs, so they survive the additive cloud-sync merge.
 
 ## Testing
 
-- Manual smoke tests in `tests/smoke.html`. Open in browser, click through, check console.
-- The app is small enough that integration > unit tests.
+- `npm test` — pure-rule assertions in `tests/logic.test.js` (no dependencies).
+- `node tests/browser-smoke.js` — real headless Chromium driven over CDP.
+- Both suites are described in `tests/README.md`.
 
 ## What good code looks like
 

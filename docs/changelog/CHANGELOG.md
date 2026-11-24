@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.0 — dance-break ladder, rare orbs, signature jiggles, open-source groundwork
+See [2026-11-25-dance-ladder-orbs-jiggle.md](2026-11-25-dance-ladder-orbs-jiggle.md)
+for the full notes.
+- Goal ladder: 50-point first dance break, bar resets to 0, every later goal
+  is 65 points, fresh 50 each day. Round log replaces the desyncing mutable
+  baseline; mini dances count within the round.
+- Rare Orbs at 700 all-time points: 12 one-of-a-kind Blender-rendered kinds per
+  class, a 7-second unlock animation, teacher-mediated swap / hand-over, and
+  an append-only ownership log.
+- Every avatar now jiggles in its own deterministic way on a point gain; fixed
+  the render-order bug that was wiping all visual reactions.
+- Arrival scoring: 5+ min early → 5, 4 min → 3, 3–1 min → 2, on time → 2,
+  late → 1. Fixed the fractional-minute boundary glitch.
+- `src/config.js`, `src/logic.js`, unit + browser smoke tests, MIT `LICENSE`,
+  `CONTRIBUTING.md`, teacher guide and spec.
+
 ## 0.2.0 — desktop app, avatar gallery, reactions & voice
 - 30-avatar shared gallery (`src/avatars.js`) with an in-app picker;
   avatars lock globally once picked by any student in any class

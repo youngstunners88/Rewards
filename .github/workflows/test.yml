@@ -1,0 +1,34 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # No npm install needed: every suite is plain Node with zero dependencies.
+      - name: Pure rules (arrival scoring, goal ladder, orb rarity, jiggles)
+        run: npm test
+
+      - name: Orb asset contract (12 icons + 7.00s / 24fps videos)
+        run: npm run test:assets
+
+      # GitHub's Ubuntu image ships Google Chrome; browser-smoke.js drives it
+      # directly over CDP, so no Playwright/Puppeteer download is required.
+      - name: Browser smoke test
+        run: npm run test:browser
+        env:
+          CHROME_BIN: google-chrome

@@ -869,3 +869,153 @@ button, .class-tab, .student-card, .card-view-btn { color: var(--ink); }
 @media (prefers-reduced-motion: reduce) {
   .dancer, .card-pet, .pet-card.pickable, .pet-rays, .dance-banner, .pet-hero { animation: none !important; }
 }
+
+/* =====================================================================
+   Dance-break ladder, signature avatar jiggles, Rare Orb Vault (Nov 2026)
+   ===================================================================== */
+
+/* ---- goal meter: round / ladder note ---- */
+.goal-ladder-note { margin-top: 6px; text-align: center; font-size: .78rem; font-weight: 700; color: var(--ink-faint); }
+
+/* ---- signature jiggle -------------------------------------------------
+   logic.js hashes the student id into one of six motion styles plus a
+   personal amplitude / rotation / duration. The !important shorthand beats
+   the existing hover wiggle so the reward reaction is never swallowed. */
+.avatar.jiggle { transform-origin: 50% 82%; will-change: transform; }
+.avatar.jiggle-bounce   { animation: jigBounce   var(--jig-dur, 620ms) cubic-bezier(.36,.07,.19,.97) both !important; }
+.avatar.jiggle-shimmy   { animation: jigShimmy   var(--jig-dur, 620ms) cubic-bezier(.36,.07,.19,.97) both !important; }
+.avatar.jiggle-wobble   { animation: jigWobble   var(--jig-dur, 620ms) cubic-bezier(.36,.07,.19,.97) both !important; }
+.avatar.jiggle-hop-twist{ animation: jigHopTwist var(--jig-dur, 620ms) cubic-bezier(.36,.07,.19,.97) both !important; }
+.avatar.jiggle-squash   { animation: jigSquash   var(--jig-dur, 620ms) cubic-bezier(.36,.07,.19,.97) both !important; }
+.avatar.jiggle-orbit    { animation: jigOrbit    var(--jig-dur, 620ms) cubic-bezier(.36,.07,.19,.97) both !important; }
+@keyframes jigBounce {
+  0%,100% { transform: translateY(0) scale(1); }
+  30%     { transform: translateY(calc(var(--jig-y, 8px) * -1)) scale(1.06, .94); }
+  60%     { transform: translateY(calc(var(--jig-y, 8px) * -.35)) scale(.97, 1.04); }
+}
+@keyframes jigShimmy {
+  0%,100% { transform: translateX(0) rotate(0); }
+  25%     { transform: translateX(calc(var(--jig-x, 6px) * var(--jig-dir, 1))) rotate(calc(var(--jig-r, 6deg) * .4)); }
+  75%     { transform: translateX(calc(var(--jig-x, 6px) * var(--jig-dir, 1) * -1)) rotate(calc(var(--jig-r, 6deg) * -.4)); }
+}
+@keyframes jigWobble {
+  0%,100% { transform: rotate(0); }
+  25%     { transform: rotate(calc(var(--jig-r, 8deg) * var(--jig-dir, 1))); }
+  75%     { transform: rotate(calc(var(--jig-r, 8deg) * var(--jig-dir, 1) * -1)); }
+}
+@keyframes jigHopTwist {
+  0%,100% { transform: translateY(0) rotate(0) scale(1); }
+  45%     { transform: translateY(calc(var(--jig-y, 9px) * -1)) rotate(calc(var(--jig-r, 8deg) * var(--jig-dir, 1))) scale(1.05); }
+  80%     { transform: translateY(0) rotate(0) scale(.98); }
+}
+@keyframes jigSquash {
+  0%,100% { transform: scale(1, 1); }
+  35%     { transform: scale(1.12, .86) translateY(calc(var(--jig-y, 6px) * .3)); }
+  65%     { transform: scale(.9, 1.12) translateY(calc(var(--jig-y, 6px) * -.3)); }
+}
+@keyframes jigOrbit {
+  0%   { transform: translate(0, 0) rotate(0); }
+  25%  { transform: translate(calc(var(--jig-x, 6px) * var(--jig-dir, 1)), calc(var(--jig-y, 6px) * -1)) rotate(calc(var(--jig-r, 6deg) * .5)); }
+  50%  { transform: translate(calc(var(--jig-x, 6px) * var(--jig-dir, 1) * -1), 0) rotate(0); }
+  75%  { transform: translate(0, calc(var(--jig-y, 6px) * -.5)) rotate(calc(var(--jig-r, 6deg) * -.5)); }
+  100% { transform: translate(0, 0) rotate(0); }
+}
+
+/* ---- orb badge on student cards and dancers ---- */
+.card-orb {
+  position: absolute; left: -10px; top: -10px; z-index: 4; width: 42px; height: 42px;
+  border-radius: 50%; object-fit: cover; border: 2px solid #b388ff; background: #12002e;
+  box-shadow: 0 0 16px rgba(167, 139, 250, .9), var(--shadow);
+  animation: orbBadgeFloat 3s ease-in-out infinite;
+}
+@keyframes orbBadgeFloat { 0%,100% { transform: translateY(0) rotate(-6deg); } 50% { transform: translateY(-4px) rotate(6deg); } }
+.dancer-orb { position: absolute; left: -6px; top: -6px; width: 34px; height: 34px; border-radius: 50%;
+  border: 2px solid #b388ff; background: #12002e; box-shadow: 0 0 12px rgba(167,139,250,.8); }
+
+/* ---- orb race strip under the goal meter ---- */
+.orb-race {
+  display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; align-items: center;
+  margin-top: 10px; padding-top: 10px; border-top: 2px dashed var(--line);
+}
+.orb-race-label { grid-column: 1 / -1; font-weight: 800; color: var(--ink); font-size: .95rem; }
+.orb-slots { display: flex; gap: 5px; flex-wrap: wrap; }
+.orb-slot {
+  width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--surface-2); color: var(--ink-soft); font-weight: 900; font-size: .95rem;
+  border: 2px dashed var(--line); overflow: hidden;
+}
+.orb-slot.filled { border: 2px solid #b388ff; background: #12002e; box-shadow: 0 0 10px rgba(167,139,250,.7); }
+.orb-slot img { width: 100%; height: 100%; object-fit: cover; }
+.orb-strip-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+.orb-view-btn {
+  font-family: inherit; font-weight: 800; cursor: pointer; border: 0; border-radius: 14px; padding: 8px 12px;
+  background: #6d28d9; color: #fff; box-shadow: var(--btn-depth); font-size: .85rem;
+}
+.orb-view-btn:active { transform: translateY(3px); }
+.orb-reveal-btn { background: var(--gold); color: #3a2a00; }
+
+/* ---- Orb Case ---- */
+.orb-case-status { margin: 4px 0 10px; padding: 9px 12px; border-radius: 12px; font-weight: 800;
+  background: color-mix(in srgb, #7c3aed 18%, var(--card)); color: var(--ink); }
+.orb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 10px 0; }
+.orb-card {
+  text-align: center; background: linear-gradient(180deg, #1b1035, #0b0620); color: #f5f3ff;
+  border: 2px solid #4c1d95; border-radius: 16px; padding: 10px 8px 12px;
+  display: flex; flex-direction: column; align-items: center; gap: 5px; box-shadow: var(--shadow);
+}
+.orb-card.owned { border-color: #b388ff; box-shadow: 0 0 14px rgba(167,139,250,.45), var(--shadow); }
+.orb-card-img { width: 100%; max-width: 108px; aspect-ratio: 1; object-fit: cover; border-radius: 50%;
+  filter: drop-shadow(0 0 12px rgba(167,139,250,.55)); }
+.orb-card.hidden-orb .orb-card-img { filter: brightness(.12) blur(2px) grayscale(1); opacity: .7; }
+.orb-card-name { font-weight: 900; font-size: .95rem; }
+.orb-card-blurb { font-size: .74rem; line-height: 1.25; color: #c4b5fd; }
+.orb-card-power { font-size: .74rem; line-height: 1.3; color: #fde68a; font-weight: 700; }
+.orb-card-owner { font-size: .72rem; font-weight: 800; color: #a5b4fc; margin-top: 2px; }
+.orb-case-actions, .orb-reveal-row { flex-wrap: wrap; justify-content: center; }
+.orb-trade-field { margin: 8px 0; }
+.orb-trade-field select { width: 100%; font-family: inherit; font-size: 1rem; padding: 9px 12px; border-radius: 12px;
+  border: 2px solid var(--line); background: var(--card); color: var(--ink); }
+.detail-orb-row { display: flex; gap: 12px; align-items: center; margin: 6px 0; }
+.detail-orb-row img { width: 74px; height: 74px; border-radius: 50%; border: 3px solid #b388ff;
+  background: #12002e; box-shadow: 0 0 16px rgba(167,139,250,.6); }
+.detail-orb-row .help { margin: 2px 0; }
+
+/* ---- 7-second Blender unlock reveal ---- */
+.orb-unlock-backdrop { background: rgba(3, 2, 14, .94); z-index: 9200; }
+.orb-unlock-modal {
+  background: transparent; border: 0; box-shadow: none; max-width: 560px; padding: 0;
+  color: #f5f3ff; text-align: center; overflow: visible;
+}
+.orb-stage { position: relative; width: min(100%, 480px); aspect-ratio: 1; margin: 0 auto; }
+.orb-unlock-video {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 24px;
+  box-shadow: 0 0 60px rgba(124, 58, 237, .65), 0 0 140px rgba(34, 211, 238, .25);
+  background: #05030f;
+}
+.orb-caption { position: absolute; left: 0; right: 0; bottom: 12px; font-weight: 900; font-size: 1rem;
+  color: #e9d5ff; text-shadow: 0 2px 12px #000; letter-spacing: .02em; }
+.orb-skip { position: absolute; top: 10px; right: 10px; z-index: 3; }
+.orb-reveal {
+  position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 4px; padding: 14px; border-radius: 24px; overflow: auto;
+  background: radial-gradient(circle at 50% 35%, rgba(76, 29, 149, .92), rgba(5, 3, 15, .97) 75%);
+  opacity: 0; transform: scale(.92); pointer-events: none; transition: opacity .6s ease, transform .6s ease;
+}
+.orb-revealed .orb-reveal { opacity: 1; transform: scale(1); pointer-events: auto; }
+.orb-reveal-img { width: 128px; height: 128px; border-radius: 50%; object-fit: cover;
+  border: 3px solid #b388ff; box-shadow: 0 0 34px rgba(167,139,250,.85); animation: orbBadgeFloat 3s ease-in-out infinite; }
+.orb-reveal-tag { font-size: .68rem; font-weight: 900; letter-spacing: .14em; color: #c4b5fd; margin-top: 6px; }
+.orb-reveal h2 { margin: 2px 0; font-size: 1.7rem; color: #fff; text-shadow: 0 0 18px rgba(167,139,250,.9); }
+.orb-reveal-blurb { margin: 0; font-size: .85rem; color: #ddd6fe; }
+.orb-reveal-power { margin: 4px 0; font-size: .9rem; font-weight: 800; color: #fde68a; }
+.orb-reveal-owner { margin: 2px 0 8px; font-size: .8rem; color: #a5b4fc; }
+
+@media (max-width: 520px) {
+  .orb-grid { grid-template-columns: repeat(2, 1fr); }
+  .orb-stage { width: min(100%, 340px); }
+  .orb-reveal-img { width: 88px; height: 88px; }
+  .orb-reveal h2 { font-size: 1.3rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .avatar.jiggle, .card-orb, .orb-reveal-img, .orb-reveal { animation: none !important; transition: none !important; }
+}

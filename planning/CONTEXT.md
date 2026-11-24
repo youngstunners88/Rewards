@@ -37,10 +37,17 @@ What this spec does NOT cover.
 
 ## Architecture rules
 
-- App is a single page. One `index.html`, one `style.css`, modular JS files loaded in order.
-- Data model is a list of students: `{ id, name, avatar, points, sadFace }`. See `architecture/data-model.md` for full schema.
-- State lives in `localStorage` under one key: `rewards.state.v1`. Increment the version if the schema changes.
-- Sad Face is intentionally NOT in the persisted state by default. See `decisions/2026-07-07-sad-face-per-class.md`.
+- App is a single page. One `index.html`, `style.css` + `themes.css`, plain JS files loaded
+  in order (`config` → `logic` → `sync` → data → `reactions` → `orbs` → `script`).
+- Pure rules (arrival scoring, goal ladder, orb rarity, jiggles) live in `src/logic.js`
+  and are unit-tested in `tests/logic.test.js`. Keep DOM out of that file.
+- State lives in `localStorage` under PER-CLASS keys: `rewards.<classId>.<field>`
+  (`days`, `sad`, `entries`, `tests`, `goal`, `pets`, `orbs`, `lessonLogs`).
+  Global keys cover avatar claims, theme, active class and roster overrides.
+- Derived state is never stored: goal rounds and orb ownership are replayed from
+  append-only logs so the additive cloud-sync merge cannot resurrect a reset.
+- Sad Face is intentionally per-class and per-day; it clears on a new day.
+- School-specific values (classes, sync endpoint, thresholds) live in `src/config.js`.
 
 ## What good work looks like here
 

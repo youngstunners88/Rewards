@@ -88,7 +88,7 @@ A fun, colorful web app that helps teachers track student rewards, behavior, and
 - **School-specific data lives in `src/config.js` / `src/students.js`**, not buried in
   logic. Keep new thresholds configurable so forks don't need code edits.
 - **Bump the `?v=N` cache-bust on every local script/style in `index.html`** when any
-  of them changes (currently `v=28`).
+  of them changes (currently `v=29`).
 
 ## How to run locally
 

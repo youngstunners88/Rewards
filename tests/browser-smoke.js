@@ -113,6 +113,12 @@ async function main() {
       await evaluate("document.querySelector('.goal-ladder-note').textContent")));
     ok("orb strip rendered", await evaluate("!!document.querySelector('.orb-race .orb-view-btn')"));
     ok("student cards rendered", (await evaluate("document.querySelectorAll('.student-card').length")) > 0);
+    ok("migration runner is loaded", await evaluate("!!window.RewardsMigrations"));
+    ok("Leo now shares Rio's class", await evaluate(`(() => {
+      const leo = allStudentsRaw().find(s => s.id === 'leo');
+      const rio = allStudentsRaw().find(s => s.id === 'rio');
+      return !!leo && !!rio && leo.classId === rio.classId && leo.classId === 'top-stars-4b-a';
+    })()`));
 
     console.log("\nAward + jiggle");
     const jiggle = await evaluate(`(() => {

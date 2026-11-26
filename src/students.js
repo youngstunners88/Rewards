@@ -47,7 +47,6 @@ window.DEFAULT_STUDENTS = [
   { id: "jun",      name: "Jun",      tier: "older" },
   { id: "kai",      name: "Kai",      tier: "older" },
   { id: "robin",    name: "Robin",    tier: "older" },
-  { id: "leo",      name: "Leo",      tier: "older" },
   { id: "jenny-h",  name: "Jenny H",  tier: "older" },
   { id: "sophi",    name: "Sophi",    tier: "older" },
   { id: "luna",     name: "Luna",     tier: "older" },
@@ -58,6 +57,10 @@ window.DEFAULT_STUDENTS = [
   { id: "lina",    name: "Lina",    tier: "lina1on1", classId: "lina-1on1" },
 
   // Top Stars 4B A — Mon/Wed/Fri 3:00pm group (separate class from 4B B).
+  // Leo moved here from Top Stars 4 (Nov 2026). His points, check-ins, tests,
+  // pet and orb travel with him via src/migrations.js — don't move him back
+  // without updating that list too.
+  { id: "leo",     name: "Leo",     tier: "older4b", classId: "top-stars-4b-a" },
   { id: "sunny",   name: "Sunny",   tier: "older4b", classId: "top-stars-4b-a" },
   { id: "jayden",  name: "Jayden",  tier: "older4b", classId: "top-stars-4b-a" },
   { id: "jay",     name: "Jay",     tier: "older4b", classId: "top-stars-4b-a" },

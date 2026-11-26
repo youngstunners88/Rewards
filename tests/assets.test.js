@@ -65,5 +65,24 @@ const poster = path.join(DIR, "orb-unlock-poster.png");
 ok("poster fallback exists", fs.existsSync(poster));
 ok("README documents regeneration", fs.existsSync(path.join(DIR, "README.md")));
 
+console.log("\nReward reaction clip");
+const clip = path.join(__dirname, "..", "src", "assets", "reactions", "reward-tier3.webm");
+ok("reward-tier3.webm exists", fs.existsSync(clip));
+if (fs.existsSync(clip)) {
+  ok("reward-tier3.webm is small (< 1 MB)", fs.statSync(clip).size < 1024 * 1024);
+  try {
+    const out = execFileSync("ffprobe", [
+      "-v", "error",
+      "-show_entries", "format=duration:stream=width,height,r_frame_rate:stream_tags=alpha_mode",
+      "-of", "default=noprint_wrappers=1", clip,
+    ], { encoding: "utf8" });
+    ok("rainbow clip is 2.2 seconds", Math.abs(parseFloat((out.match(/duration=([\d.]+)/) || [])[1]) - 2.2) < 0.1);
+    ok("rainbow clip is 30 fps", /r_frame_rate=30\/1/.test(out));
+    ok("rainbow clip carries an alpha channel", /alpha_mode=1/i.test(out));
+  } catch (err) {
+    ok("rainbow clip ffprobe", false, "ffprobe unavailable or failed: " + err.message);
+  }
+}
+
 console.log(`\n${passed} passed, ${failed} failed\n`);
 if (failed) process.exit(1);

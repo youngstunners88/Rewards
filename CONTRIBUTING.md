@@ -36,6 +36,7 @@ Both are plain data files.
 | `src/logic.js` | Pure, DOM-free rules: arrival scoring, goal ladder, orb rarity, jiggles |
 | `src/orbs.js` | Rare Orb Vault: collection, trading, 7-second unlock reveal |
 | `src/script.js` | Main app: state, storage, rendering, goal meter, pets, dance |
+| `src/migrations.js` | Carries a moved student's points/records/pets/orbs to the new class |
 | `src/reactions.js` | Sounds, reaction videos, per-student jiggle |
 | `src/style.css` / `themes.css` | All styling |
 | `src/sync.js` | Optional additive cloud sync |
@@ -45,19 +46,20 @@ Both are plain data files.
 ## Tests
 
 ```bash
-npm test                          # pure logic: 38 assertions, no dependencies
+npm test                          # pure logic + class-move migrations: 49 assertions
 npm run test:browser              # real Chromium via CDP (needs chromium on PATH)
-npm run test:assets               # orb PNGs + 7.00s/24fps video contract (needs ffprobe)
+npm run test:assets               # orb/reaction assets + durations (needs ffprobe)
 ```
 
 Please add a test in `tests/logic.test.js` when you change a rule in
-`logic.js`. Rules that touch the DOM belong in `script.js`/`orbs.js` and get
-covered by `tests/browser-smoke.js`. `.github/workflows/test.yml` runs all three
-suites on every push and pull request.
+`logic.js`, and in `tests/migrations.test.js` when you add a student move.
+Rules that touch the DOM belong in `script.js`/`orbs.js` and get covered by
+`tests/browser-smoke.js`. `.github/workflows/test.yml` runs all three suites on
+every push and pull request.
 
 ## Cache busting
 
-`src/index.html` appends `?v=28` to every local script/style. If you change a
+`src/index.html` appends `?v=29` to every local script/style. If you change a
 JS/CSS file, bump that number on **all** of them, otherwise school browsers
 can keep serving the old file from cache.
 

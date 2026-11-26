@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1 — Leo's class move + rainbow reaction fix
+See [2026-11-26-move-leo-and-rainbow-fix.md](2026-11-26-move-leo-and-rainbow-fix.md).
+- Leo moved from Top Stars 4 to Top Stars 4B A; points, check-ins, tests,
+  sad flag, pet (e.g. Star Fox) and orb travel with him via the new
+  `src/migrations.js`.
+- Regenerated the +3/+5 rainbow reaction with purple on top and a transparent
+  background.
+
 ## 0.3.0 — dance-break ladder, rare orbs, signature jiggles, open-source groundwork
 See [2026-11-25-dance-ladder-orbs-jiggle.md](2026-11-25-dance-ladder-orbs-jiggle.md)
 for the full notes.

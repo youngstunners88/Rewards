@@ -62,7 +62,7 @@ no file edits needed day to day.
 ## Tests
 
 ```bash
-npm test                          # pure rules (38 assertions, zero dependencies)
+npm test                          # pure rules + class-move migrations (49 assertions)
 node tests/browser-smoke.js       # real browser smoke test, needs chromium
 ```
 

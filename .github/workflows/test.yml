@@ -23,6 +23,13 @@ jobs:
       - name: Pure rules (arrival scoring, goal ladder, orb rarity, jiggles)
         run: npm test
 
+      # The asset contract measures video duration/fps with ffprobe, which the
+      # runner image does not include.
+      - name: Install ffmpeg (provides ffprobe)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
       - name: Orb asset contract (12 icons + 7.00s / 24fps videos)
         run: npm run test:assets
 

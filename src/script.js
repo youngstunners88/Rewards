@@ -1488,7 +1488,10 @@ function openLessonLog() {
       if (!resp.ok || data.error) throw new Error(data.error || "Request failed");
       outputArea.value = data.summary;
       outputWrap.style.display = "";
-      statusMsg.textContent = "";
+      // The server can answer from typed notes alone when the screenshot reader
+      // is busy; it says so in `notice`, which must be visible or a teacher
+      // would assume the screenshots were included.
+      statusMsg.textContent = data.notice ? "ℹ️ " + data.notice : "";
     } catch (err) {
       statusMsg.textContent = "Couldn't generate summary: " + (err.message || err);
     } finally {
